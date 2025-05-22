@@ -7,14 +7,9 @@
  * Bünyamin AKÇAY <bunyamin@bunyam.in>
  */
 
-/**
- * Class DomainNameAPI_PHPLibrary
- * @package DomainNameApi
- * @version 2.1.14
- */
-
-
 namespace DomainNameApi;
+
+require_once __DIR__ . '/SharedApiConfigAndUtilsTrait.php';
 
 use Exception;
 use SoapClient;
@@ -22,159 +17,7 @@ use SoapFault;
 
 class DomainNameAPI_PHPLibrary
 {
-    /**
-     * Version of the library
-     */
-    const VERSION = '2.1.14';
-
-    const DEFAULT_NAMESERVERS = [
-        'ns1.domainnameapi.com',
-        'ns2.domainnameapi.com',
-    ];
-
-    const DEFAULT_IGNORED_ERRORS = [
-        'Domain not found',
-        'ERR_DOMAIN_NOT_FOUND',
-        'Reseller not found',
-        'Domain is not in updateable status',
-        'balance is not sufficient',
-        'Price definition not found',
-        'TLD is not supported',
-    ];
-
-    const DEFAULT_ERRORS = [
-        'DOMAIN_DETAILS'          => [
-            'code'        => 'DOMAIN_DETAILS',
-            'message'     => 'Invalid domain details! Details format is not valid',
-            'description' => 'The provided domain details are not in the expected format'
-        ],
-        'CREDENTIALS'             => [
-            'code'        => 'CREDENTIALS',
-            'message'     => 'Invalid username and password',
-            'description' => 'The provided API credentials are invalid'
-        ],
-        'DOMAIN_LIST'             => [
-            'code'        => 'DOMAIN_LIST',
-            'message'     => 'The domain list is invalid or contains multiple entries!',
-            'description' => 'The domain list response format is incorrect or unexpected'
-        ],
-        'TLD_LIST'                => [
-            'code'        => 'TLD_LIST',
-            'message'     => 'TLD info is not a valid array or more than one TLD info has returned!',
-            'description' => 'The TLD list response is not in the expected format'
-        ],
-        'RESPONSE'                => [
-            'code'        => 'RESPONSE',
-            'message'     => 'Invalid response received from server! Response is empty.',
-            'description' => 'The API response is empty or null'
-        ],
-        'RESPONSE_FORMAT'         => [
-            'code'        => 'RESPONSE_FORMAT',
-            'message'     => 'Invalid response received from server! Response format is not valid.',
-            'description' => 'The API response format is not in the expected structure'
-        ],
-        'RESPONSE_COUNT'          => [
-            'code'        => 'RESPONSE_COUNT',
-            'message'     => 'Invalid parameters passed to function! Response data contains more than one result!',
-            'description' => 'The API response contains multiple results when only one was expected'
-        ],
-        'RESPONSE_CODE'           => [
-            'code'        => 'RESPONSE_CODE',
-            'message'     => 'Invalid parameters passed to function! Operation result or Error code not received from server',
-            'description' => 'The API response is missing required operation result or error code fields'
-        ],
-        'RESPONSE_SOAP'           => [
-            'code'        => 'RESPONSE_SOAP',
-            'message'     => 'Invalid parameters passed to function! Soap return is not a valid array!',
-            'description' => 'The SOAP response is not in a valid array format'
-        ],
-        'CONTACT_INFO'            => [
-            'code'        => 'CONTACT_INFO',
-            'message'     => 'Invalid response received from server! Contact info is not a valid array or more than one contact info has returned!',
-            'description' => 'The contact information response is not in the expected format'
-        ],
-        'CONTACT_SAVE'            => [
-            'code'        => 'CONTACT_SAVE',
-            'message'     => 'Invalid response received from server! Contact info could not be saved!',
-            'description' => 'The contact information could not be saved on the server'
-        ],
-        'DOMAIN_TRANSFER_REQUEST' => [
-            'code'        => 'DOMAIN_TRANSFER_REQUEST',
-            'message'     => 'Invalid response received from server! Domain transfer request could not be completed!',
-            'description' => 'The domain transfer request failed to complete'
-        ],
-        'DOMAIN_RENEW'            => [
-            'code'        => 'DOMAIN_RENEW',
-            'message'     => 'Invalid response received from server! Domain renew request could not be completed!',
-            'description' => 'The domain renewal request failed to complete'
-        ],
-        'DOMAIN_REGISTER'         => [
-            'code'        => 'DOMAIN_REGISTER',
-            'message'     => 'Invalid response received from server! Domain register request could not be completed!',
-            'description' => 'The domain registration request failed to complete'
-        ],
-        'DOMAIN_SYNC'             => [
-            'code'        => 'DOMAIN_SYNC',
-            'message'     => 'Invalid response received from server! Domain sync request could not be completed!',
-            'description' => 'The domain synchronization request failed to complete'
-        ]
-    ];
-
-    const DEFAULT_CACHE_TTL = 512;
-    const DEFAULT_TIMEOUT   = 20;
-    const DEFAULT_REASON    = 'Owner request';
-
-    private const APPLICATIONS = [
-        'WHMCS'          => [
-            'path' => 'modules/registrars/domainnameapi',
-            'dsn'  => 'https://cbaee35fa4d2836942641e10c2109cb6@sentry.atakdomain.com/9'
-        ],
-        'WISECP'         => [
-            'path' => 'coremio/modules/Registrars/DomainNameAPI',
-            'dsn'  => 'https://16578e3378f7d6c329ff95d9573bc6fa@sentry.atakdomain.com/8'
-        ],
-        'HOSTBILL'       => [
-            'path' => 'includes/modules/Domain/domainnameapi',
-            'dsn'  => 'https://be47804b215cb479dbfc44db5c662549@sentry.atakdomain.com/11'
-        ],
-        'BLESTA'         => [
-            'path' => 'components/modules/domainnameapi',
-            'dsn'  => 'https://8f8ed6f84abaa93ff49b56f15d3c1f38@sentry.atakdomain.com/10'
-        ],
-        'CLIENTEXEC'     => [
-            'path' => 'plugins/registrars/domainnameapi',
-            'dsn'  => 'https://033791219211d863fdb9c08b328ba058@sentry.atakdomain.com/13'
-        ],
-        'CORE'           => [
-            'path' => '',
-            'dsn'  => 'https://0ea94fed70c09f95c17dfa211d43ac66@sentry.atakdomain.com/2'
-        ],
-        'ISPBILLMANAGER' => [
-            'path' => '',
-            'dsn'  => ''
-        ],
-        'HOSTFACT'       => [
-            'path' => 'Pro/3rdparty/domain/domainnameapi',
-            'dsn'  => 'https://58fe0a01a6704d9f1c2dbbc1a316f233@sentry.atakdomain.com/14'
-        ],
-        'NONE'           => [
-            'path' => '',
-            'dsn'  => ''
-        ]
-    ];
-
-    private const CURRENCIES = [
-        'TRY' => [
-            'id'   => 1,
-            'code' => 'TRY',
-            'name' => 'Turkish Lira'
-        ],
-        'USD' => [
-            'id'   => 2,
-            'code' => 'USD',
-            'name' => 'US Dollar'
-        ]
-    ];
+    use SharedApiConfigAndUtilsTrait;
 
     /**
      * Error reporting enabled
@@ -185,8 +28,8 @@ class DomainNameAPI_PHPLibrary
      * This request does not include sensitive informations, sensitive informations are filtered.
      * @var string $errorReportingDsn
      */
-    private string $errorReportingDsn  = 'https://0ea94fed70c09f95c17dfa211d43ac66@sentry.atakdomain.com/2';
-    private string $errorReportingPath = '';
+    private string $errorReportingDsn  = ''; // Trait'teki _setApplication ile dolacak
+    private string $errorReportingPath = ''; // Trait'teki _setApplication ile dolacak
 
     /**
      * Api Username
@@ -206,7 +49,7 @@ class DomainNameAPI_PHPLibrary
      * @var string $serviceUrl
      */
     private string     $serviceUrl          = "https://whmcs.domainnameapi.com/DomainApi.svc";
-    private string     $application         = "CORE";
+    private string     $application         = "CORE"; // Trait'teki _setApplication ile dolacak
     public array       $lastRequest         = [];
     public array       $lastResponse        = [];
     public ?string     $lastResponseHeaders = '';
@@ -220,14 +63,13 @@ class DomainNameAPI_PHPLibrary
      * DomainNameAPI_PHPLibrary constructor.
      * @param string $userName
      * @param string $password
-     * @param bool $testMode
      * @throws Exception | SoapFault
      */
     public function __construct($userName = "ownername", $password = "ownerpass")
     {
         $this->startAt = microtime(true);
-        self::setCredentials($userName, $password);
-        self::setApplication();
+        $this->setCredentials($userName, $password);
+        $this->_setApplication(__FILE__); // Trait metodunu çağırıyoruz
 
         $context = stream_context_create([
             'ssl' => [
@@ -237,12 +79,11 @@ class DomainNameAPI_PHPLibrary
         ]);
 
         try {
-            // Create unique connection
             $this->service = new SoapClient($this->serviceUrl . "?singlewsdl", [
                 "encoding"           => "UTF-8",
                 'features'           => SOAP_SINGLE_ELEMENT_ARRAYS,
                 'exceptions'         => true,
-                'connection_timeout' => self::DEFAULT_TIMEOUT,
+                'connection_timeout' => self::$DEFAULT_TIMEOUT, // Trait'ten gelen sabit
                 'stream_context'     => $context
             ]);
         } catch (SoapFault $e) {
@@ -253,36 +94,6 @@ class DomainNameAPI_PHPLibrary
             throw new Exception("SOAP Error: " . $e->getMessage());
         }
     }
-
-    private function setApplication()
-    {
-        $dir                      = __FILE__;
-        $this->application        = 'CORE';
-        $this->errorReportingPath = self::APPLICATIONS['CORE']['path'];
-        $this->errorReportingDsn  = self::APPLICATIONS['CORE']['dsn'];
-
-        foreach (self::APPLICATIONS as $app => $config) {
-            if ($config['path'] && strpos($dir, $config['path']) !== false) {
-                $this->application        = $app;
-                $this->errorReportingPath = $config['path'];
-                $this->errorReportingDsn  = $config['dsn'];
-                break;
-            }
-        }
-    }
-
-    /**
-     * Deprecated
-     * @param bool $value
-     */
-    private function useTestMode($value = true)
-    {
-        //if ($value === true || $value == 'on') {
-        //    $this->serviceUsername = 'test1.dna@apiname.com';
-        //    $this->servicePassword = 'FsUvpJMzQ69scpqE';
-        //}
-    }
-
 
     /**
      * SET Username and Password
@@ -302,7 +113,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @return array Request data
      */
-    public function getRequestData()
+    public function getRequestData(): array
     {
         return $this->lastRequest;
     }
@@ -313,7 +124,7 @@ class DomainNameAPI_PHPLibrary
      * @param array $request Request data to set
      * @return DomainNameAPI_PHPLibrary
      */
-    public function setRequestData($request)
+    public function setRequestData($request): self
     {
         $this->lastRequest = $request;
         return $this;
@@ -324,7 +135,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @return array Response data
      */
-    public function getResponseData()
+    public function getResponseData(): array
     {
         return $this->lastResponse;
     }
@@ -335,7 +146,7 @@ class DomainNameAPI_PHPLibrary
      * @param array $response Response data to set
      * @return DomainNameAPI_PHPLibrary
      */
-    public function setResponseData($response)
+    public function setResponseData($response): self
     {
         $this->lastResponse = $response;
         return $this;
@@ -346,7 +157,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @return ?string Response headers
      */
-    public function getResponseHeaders()
+    public function getResponseHeaders(): ?string
     {
         return $this->lastResponseHeaders;
     }
@@ -357,7 +168,7 @@ class DomainNameAPI_PHPLibrary
      * @param ?string $headers Response headers to set
      * @return DomainNameAPI_PHPLibrary
      */
-    public function setResponseHeaders($headers)
+    public function setResponseHeaders($headers): self
     {
         $this->lastResponseHeaders = $headers;
         return $this;
@@ -368,7 +179,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @return array Parsed response data
      */
-    public function getParsedResponseData()
+    public function getParsedResponseData(): array
     {
         return $this->lastParsedResponse;
     }
@@ -379,7 +190,7 @@ class DomainNameAPI_PHPLibrary
      * @param array $response Parsed response data to set
      * @return DomainNameAPI_PHPLibrary
      */
-    public function setParsedResponseData($response)
+    public function setParsedResponseData($response): self
     {
         $this->lastParsedResponse = $response;
         return $this;
@@ -390,7 +201,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @return string Function name
      */
-    public function getLastFunction()
+    public function getLastFunction(): string
     {
         return $this->lastFunction;
     }
@@ -401,7 +212,7 @@ class DomainNameAPI_PHPLibrary
      * @param string $function Function name to set
      * @return DomainNameAPI_PHPLibrary
      */
-    public function setLastFunction($function)
+    public function setLastFunction($function): self
     {
         $this->lastFunction = $function;
         return $this;
@@ -412,7 +223,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @return string Service URL
      */
-    public function getServiceUrl()
+    public function getServiceUrl(): string
     {
         return $this->serviceUrl;
     }
@@ -422,7 +233,7 @@ class DomainNameAPI_PHPLibrary
      *
      * @param string $url New service URL
      */
-    public function setServiceUrl($url)
+    public function setServiceUrl($url): void
     {
         $this->serviceUrl = $url;
     }
@@ -438,12 +249,12 @@ class DomainNameAPI_PHPLibrary
     {
         $parameters = [
             "request" => [
-                'CurrencyId' => self::CURRENCIES['USD']['id'] // Varsayılan USD
+                // Trait'teki CURRENCIES sabitini kullanıyoruz
+                'CurrencyId' => self::$CURRENCIES['USD']['id'] 
             ]
         ];
 
-
-        $response = self::parseCall(__FUNCTION__, $parameters, function ($response) {
+        return self::parseCall(__FUNCTION__, $parameters, function ($response) {
             $data = $response[key($response)];
             $resp = [];
 
@@ -471,17 +282,13 @@ class DomainNameAPI_PHPLibrary
                 $resp['currency'] = $active_currency['CurrencyName'];
                 $resp['symbol']   = $active_currency['CurrencySymbol'];
                 $resp['balances'] = $balances;
+                 $resp['data'] = $resp; // Adaptör ile uyum için
             } else {
                 $resp['result'] = 'ERROR';
-                $resp['error']  = $this->setError("CREDINENTIALS");
+                $resp['error']  = $this->setError("CREDENTIALS"); // Trait metodu
             }
-
-
             return $resp;
         });
-
-
-        return $response;
     }
 
     /**
@@ -494,14 +301,11 @@ class DomainNameAPI_PHPLibrary
     public function GetCurrentBalance($currencyId = 'USD')
     {
         $currencyId = strtoupper($currencyId);
-
-        // Para birimi ID'sini bul
-        $currency = self::CURRENCIES['USD']; // Varsayılan USD
-        if (isset(self::CURRENCIES[$currencyId])) {
-            $currency = self::CURRENCIES[$currencyId];
+        $currency = self::$CURRENCIES['USD']; 
+        if (isset(self::$CURRENCIES[$currencyId])) {
+            $currency = self::$CURRENCIES[$currencyId];
         } elseif ($currencyId === '1' || $currencyId === '2') {
-            // Eski ID tabanlı kullanım için geriye dönük uyumluluk
-            foreach (self::CURRENCIES as $curr) {
+            foreach (self::$CURRENCIES as $curr) {
                 if ($curr['id'] == $currencyId) {
                     $currency = $curr;
                     break;
@@ -515,12 +319,14 @@ class DomainNameAPI_PHPLibrary
             ]
         ];
 
-
         $response = self::parseCall(__FUNCTION__, $parameters, function ($response) {
-            return $response['GetCurrentBalanceResult'];
+             // Adaptör ile uyum için data anahtarı ekleniyor
+            $parsed = $response['GetCurrentBalanceResult'];
+            if(isset($parsed['Balance'])){
+                 return ['result' => 'OK', 'data' => $parsed];
+            }
+            return $parsed; // Hata durumunu parseCall halleder
         });
-
-
         return $response;
     }
 
@@ -542,29 +348,25 @@ class DomainNameAPI_PHPLibrary
                 "DomainNameList" => $domains,
                 "TldList"        => $extensions,
                 "Period"         => $period,
-                "Commad"         => $Command
+                "Commad"         => $Command // SOAP API'de "Commad" olarak kalmış, dikkat!
             ]
         ];
 
-
-        $response = self::parseCall(__FUNCTION__, $parameters, function ($response) {
-            //return $response;
+        return self::parseCall(__FUNCTION__, $parameters, function ($response) {
             $data      = $response[key($response)];
             $available = [];
 
-            if (isset($data["DomainAvailabilityInfoList"]['DomainAvailabilityInfo']['Tld'])) {
-                $buffer = $data["DomainAvailabilityInfoList"]['DomainAvailabilityInfo'];
+            if (isset($data["DomainAvailabilityInfoList"]["DomainAvailabilityInfo"]["Tld"])) {
+                $buffer = $data["DomainAvailabilityInfoList"]["DomainAvailabilityInfo"];
                 $data   = [
                     'DomainAvailabilityInfoList' => [
-                        'DomainAvailabilityInfo' => [
-                            $buffer
-                        ]
+                        'DomainAvailabilityInfo' => [$buffer]
                     ]
                 ];
             }
 
-
-            foreach ($data["DomainAvailabilityInfoList"]['DomainAvailabilityInfo'] as $name => $value) {
+            if(isset($data["DomainAvailabilityInfoList"]["DomainAvailabilityInfo"])){
+                foreach ($data["DomainAvailabilityInfoList"]["DomainAvailabilityInfo"] as $value) {
                 $available[] = [
                     "TLD"        => $value["Tld"],
                     "DomainName" => $value["DomainName"],
@@ -577,14 +379,9 @@ class DomainNameAPI_PHPLibrary
                     "Reason"     => $value["Reason"],
                 ];
             }
-
-            return $available;
+            }
+            return ['result' => 'OK', 'data' => $available]; // Adaptör ile uyum
         });
-
-
-        // Log last request and response
-
-        return $response;
     }
 
     /**
@@ -596,15 +393,12 @@ class DomainNameAPI_PHPLibrary
      */
     public function GetList($extra_parameters = [])
     {
-        $parameters = [
-            "request" => []
-        ];
-
+        $parameters = ["request" => []];
         foreach ($extra_parameters as $k => $v) {
             $parameters['request'][$k] = $v;
         }
 
-        $response = self::parseCall(__FUNCTION__, $parameters, function ($response) {
+        return self::parseCall(__FUNCTION__, $parameters, function ($response) {
             $data = $response[key($response)];
 
             if (isset($data["TotalCount"]) && is_numeric($data["TotalCount"])) {
@@ -628,7 +422,7 @@ class DomainNameAPI_PHPLibrary
                 $result["result"] = "ERROR";
                 $result["error"]  = $this->setError("DOMAIN_LIST");
 
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_LIST] " . self::DEFAULT_ERRORS['DOMAIN_LIST']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_LIST] " . self::$DEFAULT_ERRORS['DOMAIN_LIST']['description']));
             }
             return $result;
         });
@@ -696,7 +490,7 @@ class DomainNameAPI_PHPLibrary
                     'result' => 'ERROR',
                     'error'  => $this->setError("TLD_LIST")
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[TLD_LIST] " . self::DEFAULT_ERRORS['TLD_LIST']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[TLD_LIST] " . self::$DEFAULT_ERRORS['TLD_LIST']['description']));
             }
 
             return $result;
@@ -735,7 +529,7 @@ class DomainNameAPI_PHPLibrary
                 $result["result"] = "ERROR";
                 $result["error"]  = $this->setError("DOMAIN_DETAILS");
 
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_DETAILS] " . self::DEFAULT_ERRORS['DOMAIN_DETAILS']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_DETAILS] " . self::$DEFAULT_ERRORS['DOMAIN_DETAILS']['description']));
             }
             return $result;
         });
@@ -979,7 +773,7 @@ class DomainNameAPI_PHPLibrary
                     'error'  => $this->setError("CONTACT_INFO"),
                     'result' => 'ERROR'
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[CONTACT_INFO] " . self::DEFAULT_ERRORS['CONTACT_INFO']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[CONTACT_INFO] " . self::$DEFAULT_ERRORS['CONTACT_INFO']['description']));
             }
             return $result;
         });
@@ -1025,7 +819,7 @@ class DomainNameAPI_PHPLibrary
                     'error'  => $this->setError("CONTACT_SAVE")
                 ];
 
-                $this->sendErrorToSentryAsync(new Exception("[CONTACT_SAVE] " . self::DEFAULT_ERRORS['CONTACT_SAVE']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[CONTACT_SAVE] " . self::$DEFAULT_ERRORS['CONTACT_SAVE']['description']));
             }
             return $result;
         });
@@ -1077,7 +871,7 @@ class DomainNameAPI_PHPLibrary
                     'result' => 'ERROR',
                     'data'   => $this->setError("DOMAIN_TRANSFER_REQUEST")
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_TRANSFER_REQUEST] " . self::DEFAULT_ERRORS['DOMAIN_TRANSFER_REQUEST']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_TRANSFER_REQUEST] " . self::$DEFAULT_ERRORS['DOMAIN_TRANSFER_REQUEST']['description']));
             }
             return $result;
         });
@@ -1211,7 +1005,7 @@ class DomainNameAPI_PHPLibrary
                     'result' => 'ERROR',
                     'error'  => $this->setError("DOMAIN_RENEW")
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_RENEW] " . self::DEFAULT_ERRORS['DOMAIN_RENEW']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_RENEW] " . self::$DEFAULT_ERRORS['DOMAIN_RENEW']['description']));
             }
         });
 
@@ -1236,7 +1030,7 @@ class DomainNameAPI_PHPLibrary
         $domainName,
         $period,
         $contacts,
-        $nameServers = self::DEFAULT_NAMESERVERS,
+        $nameServers = [],
         $eppLock = true,
         $privacyLock = false,
         $addionalAttributes = []
@@ -1249,6 +1043,9 @@ class DomainNameAPI_PHPLibrary
         }
         $nameServers = array_values($nameServers);
 
+        if (empty($nameServers)) {
+            $nameServers = self::$DEFAULT_NAMESERVERS;
+        }
 
         $parameters = [
             "request" => [
@@ -1326,7 +1123,7 @@ class DomainNameAPI_PHPLibrary
                     'result' => 'ERROR',
                     'error'  => $this->setError("DOMAIN_REGISTER")
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_REGISTER] " . self::DEFAULT_ERRORS['DOMAIN_REGISTER']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_REGISTER] " . self::$DEFAULT_ERRORS['DOMAIN_REGISTER']['description']));
             }
             return $result;
         });
@@ -1345,13 +1142,18 @@ class DomainNameAPI_PHPLibrary
      * @return array Operation result
      * @see examples/ModifyPrivacyProtectionStatus.php
      */
-    public function ModifyPrivacyProtectionStatus($domainName, $status, $reason = self::DEFAULT_REASON)
+    public function ModifyPrivacyProtectionStatus($domainName, $status, $reason = 'Owner request')
     {
+        // Eğer reason boş ise, varsayılan değeri kullan
+        if (empty($reason)) {
+            $reason = self::$DEFAULT_REASON;
+        }
+
         $parameters = [
             "request" => [
                 "DomainName"     => $domainName,
                 "ProtectPrivacy" => $status,
-                "Reason"         => trim($reason) ?: self::DEFAULT_REASON
+                "Reason"         => trim($reason) ?: self::$DEFAULT_REASON
             ]
         ];
 
@@ -1397,7 +1199,7 @@ class DomainNameAPI_PHPLibrary
                     'error'  => $this->setError("DOMAIN_SYNC"),
                     'result' => 'ERROR'
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_SYNC] " . self::DEFAULT_ERRORS['DOMAIN_SYNC']['description']));
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_SYNC] " . self::$DEFAULT_ERRORS['DOMAIN_SYNC']['description']));
             }
 
             return $result;
@@ -1436,14 +1238,14 @@ class DomainNameAPI_PHPLibrary
             // Set error data
             $result            = [];
             $result["Code"]    = "RESPONSE";
-            $result["Message"] = self::DEFAULT_ERRORS['RESPONSE']['message'];
-            $result["Details"] = self::DEFAULT_ERRORS['RESPONSE']['description'];
+            $result["Message"] = self::$DEFAULT_ERRORS['RESPONSE']['message'];
+            $result["Details"] = self::$DEFAULT_ERRORS['RESPONSE']['description'];
         } elseif (!is_array($response)) {
             // Set error data
             $result            = [];
             $result["Code"]    = "RESPONSE_FORMAT";
-            $result["Message"] = self::DEFAULT_ERRORS['RESPONSE_FORMAT']['message'];
-            $result["Details"] = self::DEFAULT_ERRORS['RESPONSE_FORMAT']['description'];
+            $result["Message"] = self::$DEFAULT_ERRORS['RESPONSE_FORMAT']['message'];
+            $result["Details"] = self::$DEFAULT_ERRORS['RESPONSE_FORMAT']['description'];
         } elseif (strtolower(key($response)) == "faultstring") {
             // Handle soap fault
             $result            = [];
@@ -1473,14 +1275,14 @@ class DomainNameAPI_PHPLibrary
             // Set error data
             $result            = [];
             $result["Code"]    = "RESPONSE_COUNT";
-            $result["Message"] = self::DEFAULT_ERRORS['RESPONSE_COUNT']['message'];
-            $result["Details"] = self::DEFAULT_ERRORS['RESPONSE_COUNT']['description'];
+            $result["Message"] = self::$DEFAULT_ERRORS['RESPONSE_COUNT']['message'];
+            $result["Details"] = self::$DEFAULT_ERRORS['RESPONSE_COUNT']['description'];
         } elseif (!isset($response[key($response)]["OperationResult"]) || !isset($response[key($response)]["ErrorCode"])) {
             // Set error data
             $result            = [];
             $result["Code"]    = "RESPONSE_CODE";
-            $result["Message"] = self::DEFAULT_ERRORS['RESPONSE_CODE']['message'];
-            $result["Details"] = self::DEFAULT_ERRORS['RESPONSE_CODE']['description'];
+            $result["Message"] = self::$DEFAULT_ERRORS['RESPONSE_CODE']['message'];
+            $result["Details"] = self::$DEFAULT_ERRORS['RESPONSE_CODE']['description'];
         } elseif (strtoupper($response[key($response)]["OperationResult"]) != "SUCCESS") {
             // Set error data
             $result = [
@@ -1532,8 +1334,8 @@ class DomainNameAPI_PHPLibrary
     private function setError($code, $message = '', $details = '')
     {
         $result = [];
-        if (isset(self::DEFAULT_ERRORS[$code])) {
-            $error             = self::DEFAULT_ERRORS[$code];
+        if (isset(self::$DEFAULT_ERRORS[$code])) {
+            $error             = self::$DEFAULT_ERRORS[$code];
             $result["Code"]    = $error['code'];
             $result["Message"] = $error['message'];
             $result["Details"] = $error['description'];
@@ -1856,7 +1658,7 @@ class DomainNameAPI_PHPLibrary
         } catch (SoapFault $ex) {
             $result["result"] = "ERROR";
             $result["error"]  = $this->setError('RESPONSE_SOAP',
-                self::DEFAULT_ERRORS['RESPONSE_SOAP']['description'], $ex->getMessage());
+                self::$DEFAULT_ERRORS['RESPONSE_SOAP']['description'], $ex->getMessage());
             $this->sendErrorToSentryAsync($ex);
         } catch (Exception $ex) {
             $result["result"] = "ERROR";
@@ -2134,7 +1936,7 @@ class DomainNameAPI_PHPLibrary
             return;
         }
 
-        $skipped_errors = self::DEFAULT_IGNORED_ERRORS;
+        $skipped_errors = self::$DEFAULT_IGNORED_ERRORS;
 
         foreach ($skipped_errors as $ek => $ev) {
             if (strpos($e->getMessage(), $ev) !== false) {
@@ -2276,7 +2078,7 @@ class DomainNameAPI_PHPLibrary
      */
     private function getServerIp()
     {
-        $cache_ttl    = self::DEFAULT_CACHE_TTL;
+        $cache_ttl    = self::$DEFAULT_CACHE_TTL;
         $cache_key    = 'external_ip';
         $cache_file   = __DIR__ . '/ip_addr.cache';
         $current_time = time();
