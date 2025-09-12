@@ -27,49 +27,52 @@ class Api
     {
         // SharedApiConfigAndUtilsTrait'den değerleri alıyoruz
         self::$DEFAULT_NAMESERVERS = SharedApiConfigAndUtilsTrait::$DEFAULT_NAMESERVERS;
-        self::$DEFAULT_REASON = SharedApiConfigAndUtilsTrait::$DEFAULT_REASON;
+        self::$DEFAULT_REASON      = SharedApiConfigAndUtilsTrait::$DEFAULT_REASON;
     }
 
     /**
      * Api constructor.
+     * Geriye dönük uyumlu seçim mantığı:
+     * - SOAP: $username ve $password kullanıcı adı/şifre gibi görünüyorsa
+     * - REST (legacy): $useRest=true ise kullanıcı adı/şifre+resellerId ile
+     * - REST (token): $username UUID formatında ve $resellerId=null ise ($username,$password) = (resellerId,token)
+     *
      * @param string $username
      * @param string $password
      * @param bool $useRest
      * @return array
      */
-    public function __construct(string $username, string $password, bool $useRest = false, $resellerId=null)
+    public function __construct(string $username, string $password)
     {
-
-
         if (empty($username) || empty($password)) {
             return [
                 'result' => 'ERROR',
-                'error' => [
-                    'code' => 'CREDENTIALS',
-                    'message' => 'Username and password are required',
+                'error'  => [
+                    'code'        => 'CREDENTIALS',
+                    'message'     => 'Username and password are required',
                     'description' => 'The provided API credentials are invalid'
                 ]
             ];
         }
 
-        try {
-            if ($useRest) {
-                $this->api = new DNARest($username, $password, $resellerId);
-            } else {
-                $this->api = new DomainNameAPI_PHPLibrary($username, $password);
-            }
-            return ['result' => 'OK'];
-        } catch (\Exception $e) {
-            $this->lastError = $e->getMessage();
-            return [
-                'result' => 'ERROR',
-                'error' => [
-                    'code' => 'INITIALIZATION',
-                    'message' => 'Failed to initialize API',
-                    'description' => $e->getMessage()
-                ]
-            ];
+        // Otomatik tespit: username UUID formatındaysa, token modu ile REST kullan
+        if ($this->looksLikeUuid($username)) {
+            // ($username,$password) = (resellerIdUUID, bearerToken)
+            $this->api = new DNARest($username, $password);
+        } else {
+            // Varsayılan: SOAP
+            $this->api = new DomainNameAPI_PHPLibrary($username, $password);
         }
+    }
+
+    /**
+     * Basit UUID kontrolü (v4 benzeri biçim). Büyük/küçük harf duyarsız.
+     * @param string $value
+     * @return bool
+     */
+    private function looksLikeUuid(string $value): bool
+    {
+        return (bool)preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $value);
     }
 
     /**
@@ -88,24 +91,15 @@ class Api
     public function GetResellerDetails()
     {
         try {
-            if (!$this->api) {
-                return [
-                    'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'NOT_INITIALIZED',
-                        'message' => 'API not initialized',
-                        'description' => 'API must be initialized before use'
-                    ]
-                ];
-            }
-            return $this->api->GetResellerDetails();
+           $response = $this->api->GetResellerDetails();
+           return $response;
         } catch (\Exception $e) {
             $this->lastError = $e->getMessage();
             return [
                 'result' => 'ERROR',
-                'error' => [
-                    'code' => 'RESELLER_DETAILS',
-                    'message' => 'Failed to get reseller details',
+                'error'  => [
+                    'code'        => 'RESELLER_DETAILS',
+                    'message'     => 'Failed to get reseller details',
                     'description' => $e->getMessage()
                 ]
             ];
@@ -120,22 +114,12 @@ class Api
     public function GetCurrentBalance($currencyId = 'USD')
     {
         try {
-            if (!$this->api) {
-                return [
-                    'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'NOT_INITIALIZED',
-                        'message' => 'API not initialized',
-                        'description' => 'API must be initialized before use'
-                    ]
-                ];
-            }
             if (!in_array($currencyId, ['USD', 'TRY'])) {
                 return [
                     'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'INVALID_CURRENCY',
-                        'message' => 'Invalid currency ID',
+                    'error'  => [
+                        'code'        => 'INVALID_CURRENCY',
+                        'message'     => 'Invalid currency ID',
                         'description' => 'Currency must be USD or TRY'
                     ]
                 ];
@@ -145,9 +129,9 @@ class Api
             $this->lastError = $e->getMessage();
             return [
                 'result' => 'ERROR',
-                'error' => [
-                    'code' => 'BALANCE',
-                    'message' => 'Failed to get current balance',
+                'error'  => [
+                    'code'        => 'BALANCE',
+                    'message'     => 'Failed to get current balance',
                     'description' => $e->getMessage()
                 ]
             ];
@@ -162,35 +146,26 @@ class Api
      * @param string $Command
      * @return array
      */
-    public function CheckAvailability($domains, $extensions, $period, $Command)
+    public function CheckAvailability($domains, $extensions, $period=1, $Command='create')
     {
         try {
-            if (!$this->api) {
-                return [
-                    'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'NOT_INITIALIZED',
-                        'message' => 'API not initialized',
-                        'description' => 'API must be initialized before use'
-                    ]
-                ];
-            }
+
             if (empty($domains) || empty($extensions)) {
                 return [
                     'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'INVALID_PARAMETERS',
-                        'message' => 'Invalid parameters',
+                    'error'  => [
+                        'code'        => 'INVALID_PARAMETERS',
+                        'message'     => 'Invalid parameters',
                         'description' => 'Domains and extensions are required'
                     ]
                 ];
             }
-            if ($period < 1) {
+            if ($period < 1 || $period>9) {
                 return [
                     'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'INVALID_PERIOD',
-                        'message' => 'Invalid period',
+                    'error'  => [
+                        'code'        => 'INVALID_PERIOD',
+                        'message'     => 'Invalid period',
                         'description' => 'Period must be greater than 0'
                     ]
                 ];
@@ -200,9 +175,9 @@ class Api
             $this->lastError = $e->getMessage();
             return [
                 'result' => 'ERROR',
-                'error' => [
-                    'code' => 'AVAILABILITY',
-                    'message' => 'Failed to check availability',
+                'error'  => [
+                    'code'        => 'AVAILABILITY',
+                    'message'     => 'Failed to check availability',
                     'description' => $e->getMessage()
                 ]
             ];
@@ -567,21 +542,14 @@ class Api
             if (empty($contacts) || !is_array($contacts)) {
                 throw new Exception('Contacts must be a non-empty array');
             }
-            
+
             // Nameservers boşsa varsayılan değerleri kullan
             if (empty($nameServers)) {
                 $nameServers = self::$DEFAULT_NAMESERVERS;
             }
-            
-            return $this->api->RegisterWithContactInfo(
-                $domainName,
-                $period,
-                $contacts,
-                $nameServers,
-                $eppLock,
-                $privacyLock,
-                $additionalAttributes
-            );
+
+            return $this->api->RegisterWithContactInfo($domainName, $period, $contacts, $nameServers, $eppLock,
+                $privacyLock, $additionalAttributes);
         } catch (Exception $e) {
             $this->lastError = $e->getMessage();
             throw new Exception('Failed to register domain: ' . $e->getMessage());
@@ -602,12 +570,12 @@ class Api
             if (empty($domainName)) {
                 throw new Exception('Domain name is required');
             }
-            
+
             // Reason boşsa varsayılan değeri kullan
             if (empty($reason)) {
                 $reason = self::$DEFAULT_REASON;
             }
-            
+
             return $this->api->ModifyPrivacyProtectionStatus($domainName, $status, $reason);
         } catch (Exception $e) {
             $this->lastError = $e->getMessage();
@@ -645,9 +613,9 @@ class Api
             if (!$this->api) {
                 return [
                     'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'NOT_INITIALIZED',
-                        'message' => 'API not initialized',
+                    'error'  => [
+                        'code'        => 'NOT_INITIALIZED',
+                        'message'     => 'API not initialized',
                         'description' => 'API must be initialized before use'
                     ]
                 ];
@@ -655,9 +623,9 @@ class Api
             if (empty($domain)) {
                 return [
                     'result' => 'ERROR',
-                    'error' => [
-                        'code' => 'INVALID_DOMAIN',
-                        'message' => 'Invalid domain',
+                    'error'  => [
+                        'code'        => 'INVALID_DOMAIN',
+                        'message'     => 'Invalid domain',
                         'description' => 'Domain name is required'
                     ]
                 ];
@@ -665,7 +633,7 @@ class Api
             $result = $this->api->isTrTLD($domain);
             return [
                 'result' => 'OK',
-                'data' => [
+                'data'   => [
                     'isTrTLD' => $result
                 ]
             ];
@@ -673,9 +641,9 @@ class Api
             $this->lastError = $e->getMessage();
             return [
                 'result' => 'ERROR',
-                'error' => [
-                    'code' => 'TLD_CHECK',
-                    'message' => 'Failed to check TLD',
+                'error'  => [
+                    'code'        => 'TLD_CHECK',
+                    'message'     => 'Failed to check TLD',
                     'description' => $e->getMessage()
                 ]
             ];

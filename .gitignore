@@ -3,3 +3,8 @@
 .idea
 DomainNameApi/ip_addr.cache
 
+/DomainNameApi/.ip_addr.cache
+/.cursorrules
+/price.txt
+/test2.php
+/test3.php

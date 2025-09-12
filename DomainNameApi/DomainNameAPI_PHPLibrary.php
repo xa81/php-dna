@@ -1761,7 +1761,7 @@ class DomainNameAPI_PHPLibrary
                         'processor_count' => defined('PHP_OS_FAMILY') && PHP_OS_FAMILY === 'Linux' ? (function_exists('shell_exec') ? (int)\shell_exec('nproc 2>/dev/null') ?: 1 : 1) : 1                    ]
                 ],
                 'tags' => [
-                    'release' => self::VERSION,
+                    'release' => self::$VERSION,
                     'environment' => $environment,
                     'application' => $this->application,
                     'operation' => $metrics['operation'],
@@ -1797,7 +1797,8 @@ class DomainNameAPI_PHPLibrary
             // Sentry auth headers
             $sentry_auth = [
                 'sentry_version=7',
-                'sentry_client=php-api/' . self::VERSION,
+                'sentry_version=7',
+                'sentry_client=php-api/' . self::$VERSION,
                 "sentry_key=$public_key"
             ];
             if ($secret_key) {
@@ -2018,7 +2019,7 @@ class DomainNameAPI_PHPLibrary
             'tags'      => [
                 'handled'         => 'yes',
                 'level'           => 'error',
-                'release'         => self::VERSION,
+                'release'         => self::$VERSION,
                 'environment'     => 'production',
                 'url'             => $_SERVER['REQUEST_URI'] ?? 'NA',
                 'transaction'     => $_SERVER['REQUEST_METHOD'] ?? 'NA',
@@ -2042,7 +2043,7 @@ class DomainNameAPI_PHPLibrary
         // Sentry başlığı
         $sentry_auth = [
             'sentry_version=7',
-            'sentry_client=phplib-php/' . self::VERSION,
+            'sentry_client=phplib-php/' . self::$VERSION,
             "sentry_key=$public_key"
         ];
         if ($secret_key) {
