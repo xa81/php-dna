@@ -8,15 +8,15 @@
  */
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
 /**
  * Get Current account details with balance
  */
-$reseller = $dna->GetResellerDetails();
+$reseller = $dna->getResellerDetails();
 print_r($reseller);
 
 

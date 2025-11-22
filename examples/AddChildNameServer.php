@@ -8,8 +8,8 @@
  */
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -20,7 +20,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $IPAdress
  * @return array
  */
-$ns_add=$dna->AddChildNameServer('domainhakkinda.com','test5.domainhakkinda.com','1.2.3.4');
+$ns_add=$dna->addChildNameServer('example.com','ns1.example.com','192.168.1.1');
 print_r($ns_add);
 
 

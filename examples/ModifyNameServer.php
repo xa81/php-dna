@@ -11,8 +11,8 @@
 
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -22,7 +22,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param array $NameServers
  * @return array
  */
-$ns_change=$dna->ModifyNameServer('domainhakkinda.com',['ns1'=>'ns1.bunyam.in','ns2'=>'ns2.bunyam.in']);
+$ns_change=$dna->modifyNameServer('example.com',['ns1'=>'ns1.example.com','ns2'=>'ns2.example.com']);
 print_r($ns_change);
 
 

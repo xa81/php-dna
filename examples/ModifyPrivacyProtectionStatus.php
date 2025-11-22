@@ -8,8 +8,8 @@
  */
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -20,7 +20,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $Reason
  * @return array
  */
-$privacy = $dna->ModifyPrivacyProtectionStatus('domainhakkinda.com', true/**or false*/, 'owners optional comment');
+$privacy = $dna->modifyPrivacyProtectionStatus('example.com', true/**or false*/, 'Owner request');
 print_r($privacy);
 
 /**

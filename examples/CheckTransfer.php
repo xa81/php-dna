@@ -8,8 +8,8 @@
  */
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -21,7 +21,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param int $Period
  * @return array
  */
-$result = $dna->CheckTransfer('testdomain859.com', '5b3}R6Qq');
+$result = $dna->checkTransfer('example.com', 'ABC123XYZ456');
 print_r($result);
 
 /**

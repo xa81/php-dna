@@ -9,8 +9,8 @@
 
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -23,7 +23,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $Command
  * @return array
  */
-$result = $dna->CheckAvailability(['hello','world123x0'],['com','net'],1,'create');
+$result = $dna->checkAvailability(['example','testdomain'],['com','net'],1,'create');
 print_r($result);
 
 
@@ -33,7 +33,7 @@ print_r($result);
     [0] => Array
         (
             [TLD] => com
-            [DomainName] => hello
+            [DomainName] => example
             [Status] => notavailable
             [Command] => create
             [Period] => 1
@@ -46,7 +46,7 @@ print_r($result);
     [1] => Array
         (
             [TLD] => net
-            [DomainName] => world123x0
+            [DomainName] => testdomain
             [Status] => available
             [Command] => create
             [Period] => 1
@@ -59,7 +59,7 @@ print_r($result);
     [2] => Array
         (
             [TLD] => net
-            [DomainName] => hello
+            [DomainName] => example
             [Status] => notavailable
             [Command] => create
             [Period] => 1
@@ -72,7 +72,7 @@ print_r($result);
     [3] => Array
         (
             [TLD] => com
-            [DomainName] => world123x0
+            [DomainName] => testdomain
             [Status] => available
             [Command] => create
             [Period] => 1

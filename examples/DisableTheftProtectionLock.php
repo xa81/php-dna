@@ -9,8 +9,8 @@
 
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -19,5 +19,5 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $DomainName
  * @return array
  */
-$lock=$dna->DisableTheftProtectionLock('domainhakkinda.com');
+$lock=$dna->disableTheftProtectionLock('example.com');
 print_r($lock);

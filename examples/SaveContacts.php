@@ -8,29 +8,29 @@
  */
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
 
 $contact = array(
-    "FirstName"       => 'Bunyamin',
-    "LastName"         => 'Mutlu',
-    "Company"          => '',
-    "EMail"            => 'bun.mutlu@gmail.com',
-    "AddressLine1"     => 'adres 1 adres 1 adres 1 ',
-    "AddressLine2"     => 'test test',
+    "FirstName"       => 'John',
+    "LastName"         => 'Doe',
+    "Company"          => 'Example Corp',
+    "EMail"            => 'john.doe@example.com',
+    "AddressLine1"     => '123 Main Street',
+    "AddressLine2"     => 'Suite 100',
     "AddressLine3"     => '',
-    "City"             => 'Kocaeli',
-    "Country"          => 'TR',
-    "Fax"              => '2626060026',
-    "FaxCountryCode"   => '90',
-    "Phone"            => '5555555555',
-    "PhoneCountryCode" => 90,
+    "City"             => 'Los Angeles',
+    "Country"          => 'US',
+    "Fax"              => '5559876543',
+    "FaxCountryCode"   => '1',
+    "Phone"            => '5551234567',
+    "PhoneCountryCode" => 1,
     "Type"             => 'Contact',
-    "ZipCode"          => '41829',
-    "State"            => 'GEBZE'
+    "ZipCode"          => '90001',
+    "State"            => 'California'
 );
 
 /**
@@ -39,7 +39,7 @@ $contact = array(
  * @param array $Contacts
  * @return array
  */
-$ns_add=$dna->SaveContacts('domainhakkinda.com',['Administrative'=>$contact, 'Billing'=>$contact, 'Technical'=>$contact, 'Registrant'=>$contact,]);
+$ns_add=$dna->saveContacts('example.com',['Administrative'=>$contact, 'Billing'=>$contact, 'Technical'=>$contact, 'Registrant'=>$contact,]);
 print_r($ns_add);
 
 

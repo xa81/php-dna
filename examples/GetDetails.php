@@ -11,8 +11,8 @@
 
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -21,7 +21,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $DomainName
  * @return array
  */
-$result = $dna->GetDetails('cnic-test769.bbs.tr');
+$result = $dna->getDetails('example.com');
 print_r($result);
 
 /**
@@ -29,10 +29,10 @@ print_r($result);
 (
     [data] => Array
         (
-            [ID] => 637611
+            [ID] => 123456
             [Status] => Active
-            [DomainName] => cnic-test769.bbs.tr
-            [AuthCode] => JS9D89C4GBTBC68XKZ28S3ZGL00SMWAC
+            [DomainName] => example.com
+            [AuthCode] => ABC123XYZ456DEF789GHI012JKL345MNO
             [LockStatus] => true
             [PrivacyProtectionStatus] => false
             [IsChildNameServer] => false

@@ -8,8 +8,8 @@
  */
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -19,7 +19,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $NameServer
  * @return array
  */
-$ns_del = $dna->DeleteChildNameServer('domainhakkinda.com', 'test5.domainhakkinda.com');
+$ns_del = $dna->deleteChildNameServer('example.com', 'ns1.example.com');
 print_r($ns_del);
 
 

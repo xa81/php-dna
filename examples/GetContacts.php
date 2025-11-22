@@ -9,8 +9,8 @@
 
 require_once __DIR__.'/../DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
-$username = 'test1.dna@apiname.com';
-$password = 'FsUvpJMzQ69scpqE';
+$username = 'your-username@example.com';
+$password = 'your-password';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
 
@@ -19,7 +19,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary($username,$password);
  * @param string $DomainName
  * @return array
  */
-$contacts=$dna->GetContacts('domainhakkinda.com');
+$contacts=$dna->getContacts('example.com');
 print_r($contacts);
 
 
@@ -32,7 +32,7 @@ Array
                 (
                     [Administrative] => Array
                         (
-                            [ID] => 11965538
+                            [ID] => 123456
                             [Status] =>
                             [Additional] => Array
                                 (
@@ -40,42 +40,42 @@ Array
 
                             [Address] => Array
                                 (
-                                    [Line1] => adres 1 adres 1 adres 1
-                                    [Line2] => test test
+                                    [Line1] => 123 Main Street
+                                    [Line2] => Suite 100
                                     [Line3] =>
-                                    [State] => GEBZE
-                                    [City] => Kocaeli
-                                    [Country] => TR
-                                    [ZipCode] => 41829
+                                    [State] => California
+                                    [City] => Los Angeles
+                                    [Country] => US
+                                    [ZipCode] => 90001
                                 )
 
                             [Phone] => Array
                                 (
                                     [Phone] => Array
                                         (
-                                            [Number] => 5350000002
-                                            [CountryCode] => 90
+                                            [Number] => 5551234567
+                                            [CountryCode] => 1
                                         )
 
                                     [Fax] => Array
                                         (
-                                            [Number] => 2626060026
-                                            [CountryCode] => 90
+                                            [Number] => 5559876543
+                                            [CountryCode] => 1
                                         )
 
                                 )
 
                             [AuthCode] =>
-                            [FirstName] => Bunyamin
-                            [LastName] => AKCAY
-                            [Company] => n/a
-                            [EMail] => bakcay@live.com
+                            [FirstName] => John
+                            [LastName] => Doe
+                            [Company] => Example Corp
+                            [EMail] => john.doe@example.com
                             [Type] => Contact
                         )
 
                     [Billing] => Array
                         (
-                            [ID] => 11965538
+                            [ID] => 123456
                             [Status] =>
                             [Additional] => Array
                                 (
@@ -83,42 +83,42 @@ Array
 
                             [Address] => Array
                                 (
-                                    [Line1] => adres 1 adres 1 adres 1
-                                    [Line2] => test test
+                                    [Line1] => 123 Main Street
+                                    [Line2] => Suite 100
                                     [Line3] =>
-                                    [State] => GEBZE
-                                    [City] => Kocaeli
-                                    [Country] => TR
-                                    [ZipCode] => 41829
+                                    [State] => California
+                                    [City] => Los Angeles
+                                    [Country] => US
+                                    [ZipCode] => 90001
                                 )
 
                             [Phone] => Array
                                 (
                                     [Phone] => Array
                                         (
-                                            [Number] => 5350000002
-                                            [CountryCode] => 90
+                                            [Number] => 5551234567
+                                            [CountryCode] => 1
                                         )
 
                                     [Fax] => Array
                                         (
-                                            [Number] => 2626060026
-                                            [CountryCode] => 90
+                                            [Number] => 5559876543
+                                            [CountryCode] => 1
                                         )
 
                                 )
 
                             [AuthCode] =>
-                            [FirstName] => Bunyamin
-                            [LastName] => AKCAY
-                            [Company] => n/a
-                            [EMail] => bakcay@live.com
+                            [FirstName] => John
+                            [LastName] => Doe
+                            [Company] => Example Corp
+                            [EMail] => john.doe@example.com
                             [Type] => UkContact
                         )
 
                     [Registrant] => Array
                         (
-                            [ID] => 11965538
+                            [ID] => 123456
                             [Status] =>
                             [Additional] => Array
                                 (
@@ -126,42 +126,42 @@ Array
 
                             [Address] => Array
                                 (
-                                    [Line1] => adres 1 adres 1 adres 1
-                                    [Line2] => test test
+                                    [Line1] => 123 Main Street
+                                    [Line2] => Suite 100
                                     [Line3] =>
-                                    [State] => GEBZE
-                                    [City] => Kocaeli
-                                    [Country] => TR
-                                    [ZipCode] => 41829
+                                    [State] => California
+                                    [City] => Los Angeles
+                                    [Country] => US
+                                    [ZipCode] => 90001
                                 )
 
                             [Phone] => Array
                                 (
                                     [Phone] => Array
                                         (
-                                            [Number] => 5350000002
-                                            [CountryCode] => 90
+                                            [Number] => 5551234567
+                                            [CountryCode] => 1
                                         )
 
                                     [Fax] => Array
                                         (
-                                            [Number] => 2626060026
-                                            [CountryCode] => 90
+                                            [Number] => 5559876543
+                                            [CountryCode] => 1
                                         )
 
                                 )
 
                             [AuthCode] =>
-                            [FirstName] => Bunyamin
-                            [LastName] => AKCAY
-                            [Company] => n/a
-                            [EMail] => bakcay@live.com
+                            [FirstName] => John
+                            [LastName] => Doe
+                            [Company] => Example Corp
+                            [EMail] => john.doe@example.com
                             [Type] => EuContact
                         )
 
                     [Technical] => Array
                         (
-                            [ID] => 11965538
+                            [ID] => 123456
                             [Status] =>
                             [Additional] => Array
                                 (
@@ -169,36 +169,36 @@ Array
 
                             [Address] => Array
                                 (
-                                    [Line1] => adres 1 adres 1 adres 1
-                                    [Line2] => test test
+                                    [Line1] => 123 Main Street
+                                    [Line2] => Suite 100
                                     [Line3] =>
-                                    [State] => GEBZE
-                                    [City] => Kocaeli
-                                    [Country] => TR
-                                    [ZipCode] => 41829
+                                    [State] => California
+                                    [City] => Los Angeles
+                                    [Country] => US
+                                    [ZipCode] => 90001
                                 )
 
                             [Phone] => Array
                                 (
                                     [Phone] => Array
                                         (
-                                            [Number] => 5350000002
-                                            [CountryCode] => 90
+                                            [Number] => 5551234567
+                                            [CountryCode] => 1
                                         )
 
                                     [Fax] => Array
                                         (
-                                            [Number] => 2626060026
-                                            [CountryCode] => 90
+                                            [Number] => 5559876543
+                                            [CountryCode] => 1
                                         )
 
                                 )
 
                             [AuthCode] =>
-                            [FirstName] => Bunyamin
-                            [LastName] => AKCAY
-                            [Company] => n/a
-                            [EMail] => bakcay@live.com
+                            [FirstName] => John
+                            [LastName] => Doe
+                            [Company] => Example Corp
+                            [EMail] => john.doe@example.com
                             [Type] => CoopContact
                         )
 
