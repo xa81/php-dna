@@ -39,6 +39,7 @@ class DomainNameAPI_PHPLibrary
         'balance is not sufficient',
         'Price definition not found',
         'TLD is not supported',
+        'Invalid API credentials',
     ];
 
     const DEFAULT_ERRORS = [
@@ -1249,11 +1250,12 @@ class DomainNameAPI_PHPLibrary
                     ]
                 ];
             } else {
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_RENEW] " . self::DEFAULT_ERRORS['DOMAIN_RENEW']['description']));
                 return [
                     'result' => self::RESULT_ERROR,
                     'error'  => $this->setError("DOMAIN_RENEW")
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_RENEW] " . self::DEFAULT_ERRORS['DOMAIN_RENEW']['description']));
+
             }
         });
 
