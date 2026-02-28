@@ -24,15 +24,24 @@ jobs:
           git clone https://github.com/domainreseller/hostfact-dna
           git clone https://github.com/domainreseller/fossbilling-dna
 
-      - name: Copy updated library file
+      - name: Copy updated library files
         run: |
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php hostbill-dna/includes/modules/Domain/domainnameapi/lib/dna.php
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php blesta-dna/components/modules/domainnameapi/apis/api.php
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php whmcs-dna/modules/registrars/domainnameapi/lib/dna.php
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php wisecp-dna/coremio/modules/Registrars/DomainNameAPI/api.php
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php clientexec-dna/api.php
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php hostfact-dna/domainnameapi/library/DomainNameApi/DomainNameAPI_PHPLibrary.php
-          cp DomainNameApi/DomainNameAPI_PHPLibrary.php fossbilling-dna/library/Registrar/Adapter/DomainNameApi/lib/dna.php
+          SRC="DomainNameApi"
+          EXTRA="DNASoap.php DNARest.php SharedApiConfigAndUtilsTrait.php"
+
+          copy_lib() {
+            local dir="$1" main="$2"
+            cp "$SRC/DomainNameAPI_PHPLibrary.php" "$main"
+            for f in $EXTRA; do cp "$SRC/$f" "$dir/$f"; done
+          }
+
+          copy_lib "hostbill-dna/includes/modules/Domain/domainnameapi/lib" "hostbill-dna/includes/modules/Domain/domainnameapi/lib/dna.php"
+          copy_lib "blesta-dna/components/modules/domainnameapi/apis" "blesta-dna/components/modules/domainnameapi/apis/api.php"
+          copy_lib "whmcs-dna/modules/registrars/domainnameapi/lib" "whmcs-dna/modules/registrars/domainnameapi/lib/dna.php"
+          copy_lib "wisecp-dna/coremio/modules/Registrars/DomainNameAPI" "wisecp-dna/coremio/modules/Registrars/DomainNameAPI/api.php"
+          copy_lib "clientexec-dna" "clientexec-dna/api.php"
+          copy_lib "hostfact-dna/domainnameapi/library/DomainNameApi" "hostfact-dna/domainnameapi/library/DomainNameApi/DomainNameAPI_PHPLibrary.php"
+          copy_lib "fossbilling-dna/library/Registrar/Adapter/DomainNameApi/lib" "fossbilling-dna/library/Registrar/Adapter/DomainNameApi/lib/dna.php"
 
 
 
