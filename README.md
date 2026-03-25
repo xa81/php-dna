@@ -1,13 +1,13 @@
-<div align="center">  
-  <a href="README-TR.md"   >   TR <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/TR.png" alt="TR" height="20" /></a>  
-  <a href="README.md"> | EN <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/US.png" alt="EN" height="20" /></a>  
-   <a href="README-DE.md"> | DE <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/DE.png" alt="DE" height="20" /></a>  
-  <a href="README-SA.md"> | SA <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/SA.png" alt="AR" height="20" /></a>  
-  <a href="README-NL.md"> | NL <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/NL.png" alt="NL" height="20" /></a>  
-  <a href="README-AZ.md"> | AZ <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/AZ.png" alt="AZ" height="20" /></a>  
-  <a href="README-CN.md"> | CN <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/CN.png" alt="CN" height="20" /></a>  
-  <a href="README-FR.md"> | FR <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/FR.png" alt="FR" height="20" /></a>  
-  <a href="README-IT.md"> | IT <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/IT.png" alt="IT" height="20" /></a>  
+<div align="center">
+  <a href="README-TR.md"   >   TR <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/TR.png" alt="TR" height="20" /></a>
+  <a href="README.md"> | EN <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/US.png" alt="EN" height="20" /></a>
+   <a href="README-DE.md"> | DE <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/DE.png" alt="DE" height="20" /></a>
+  <a href="README-SA.md"> | SA <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/SA.png" alt="AR" height="20" /></a>
+  <a href="README-NL.md"> | NL <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/NL.png" alt="NL" height="20" /></a>
+  <a href="README-AZ.md"> | AZ <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/AZ.png" alt="AZ" height="20" /></a>
+  <a href="README-CN.md"> | CN <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/CN.png" alt="CN" height="20" /></a>
+  <a href="README-FR.md"> | FR <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/FR.png" alt="FR" height="20" /></a>
+  <a href="README-IT.md"> | IT <img style="padding-top: 8px" src="https://raw.githubusercontent.com/yammadev/flag-icons/master/png/IT.png" alt="IT" height="20" /></a>
 </div>
 
 ## Installation and Integration Guide
@@ -15,23 +15,47 @@
 ### Minimum Requirements
 
 - PHP7.4 or higher (Recommended 8.1)
-- PHP SOAPClient extension must be active.
+- PHP SOAPClient extension must be active (for SOAP mode).
+- PHP cURL extension must be active (for REST mode).
+
+### SOAP vs REST API
+
+The library supports two API modes. The mode is automatically selected based on the username format:
+
+| Mode | Username Format | Example |
+|------|----------------|---------|
+| **SOAP** (Legacy) | Regular username | `myreseller` |
+| **REST** (New) | UUID format | `fd2bea54-99ea-16b6-c195-3a1b9079df00` |
+
+Both modes return the same response structure, so you can switch between them without changing your integration code.
+
+```php
+// SOAP mode (legacy credentials)
+$dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('myreseller', 'mypassword');
+
+// REST mode (UUID credentials)
+$dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('fd2bea54-99ea-16b6-c195-3a1b9079df00', 'your-api-token');
+
+// Both modes use the exact same method calls
+$details = $dna->GetResellerDetails();
+$domains = $dna->GetList();
+```
 
 ### A) Manual Usage
 
 Download the files and examine the examples in the [examples](examples) folder.
 
 ```php
-require_once __DIR__.'/src/DomainNameAPI_PHPLibrary.php';
+require_once __DIR__.'/DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('username','password');
 ```
 
 
-### B) Composer ile entegrasyon için
+### B) Composer Integration
 
 ```bash
-composer require domainreseller/php-dna 
+composer require domainreseller/php-dna
 ```
 
 ```php
@@ -45,7 +69,7 @@ $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('username','password');
 
 
 
-#### Domain Registration Operations
+#### Domain Registration
 
 Note: Additional parameters are required for .tr domains. The Additional parameter is used for domain names that require extra information like .tr.
 
@@ -69,7 +93,7 @@ $contact = [
     "State"            => 'IL'
 ];
 
-$a->RegisterWithContactInfo(
+$dna->RegisterWithContactInfo(
     'example.com',
     1,
     [
@@ -81,13 +105,13 @@ $a->RegisterWithContactInfo(
     ["ns1.example.com", "ns2.example.com"],
     true,
     false,
-    //Addional attributes sadece .tr domainler için gereklidir.
+    // Additional attributes are only required for .tr domains
     [
         'TRABISDOMAINCATEGORY' => 1,
         'TRABISCITIZIENID'     => '12345678901',
         'TRABISNAMESURNAME'    => 'John Doe',
         'TRABISCOUNTRYID'      => '840',
-        'TRABISCITYID'        => '17'
+        'TRABISCITYID'         => '17'
     ]);
 ```
 
@@ -128,8 +152,8 @@ Array
         )
         [Dates] => Array
         (
-            [Start] => 2024-03-15T10:00:00+03:00
-            [Expiration] => 2025-03-15T10:00:00+03:00
+            [Start] => 2024-03-15T10:00:00
+            [Expiration] => 2025-03-15T10:00:00
             [RemainingDays] => 365
         )
         [NameServers] => Array
@@ -139,21 +163,12 @@ Array
         )
         [Additional] => Array
         (
-            [TRABISDOMAINCATEGORY] => 1
-            [TRABISCITIZIENID] => 98765432109
-            [TRABISNAMESURNAME] => Jane Smith
-            [TRABISCOUNTRYID] => 840
-            [TRABISCITYID] => 34
         )
         [ChildNameServers] => Array
         (
-                )
-          
         )
     )
 )
-
-
 ```
 
 </details>
@@ -175,11 +190,9 @@ Array
     [result] => OK
     [data] => Array
     (
-        [ExpirationDate] => 2025-03-15T10:00:00+03:00
+        [ExpirationDate] => 2025-03-15T10:00:00
     )
 )
-
-
 ```
 
 </details>
@@ -201,8 +214,6 @@ Array
 (
     [result] => OK
 )
-
-
 ```
 
 </details>
@@ -254,8 +265,8 @@ Array
                 )
                 [Dates] => Array
                 (
-                    [Start] => 2024-03-15T10:00:00+03:00
-                    [Expiration] => 2025-03-15T10:00:00+03:00
+                    [Start] => 2024-03-15T10:00:00
+                    [Expiration] => 2025-03-15T10:00:00
                     [RemainingDays] => 365
                 )
                 [NameServers] => Array
@@ -265,32 +276,21 @@ Array
                 )
                 [Additional] => Array
                 (
-                    [TRABISDOMAINCATEGORY] => 1
-                    [TRABISCITIZIENID] => 98765432109
-                    [TRABISNAMESURNAME] => Jane Smith
-                    [TRABISCOUNTRYID] => 215
-                    [TRABISCITYID] => 34
                 )
                 [ChildNameServers] => Array
                 (
                     [0] => Array
                     (
-                        [Name] => ns1.example.com
-                        [IP] => 1.2.3.4
-                    )
-                    [1] => Array
-                    (
-                        [Name] => ns2.example.com
-                        [IP] => 2.3.4.5
+                        [ns] => ns1.example.com
+                        [ip] => 1.2.3.4
                     )
                 )
             )
         )
     )
     [result] => OK
+    [TotalCount] => 1
 )
-
-
 ```
 
 </details>
@@ -307,128 +307,50 @@ $dna->GetTldList(100);
 <summary>Sample Output for TLD List</summary>
 
 ```php
-
 Array
 (
     [data] => Array
         (
             [0] => Array
                 (
-                    [id] => 1971
+                    [id] => 1
                     [status] => Active
                     [maxchar] => 63
                     [maxperiod] => 10
-                    [minchar] => 3
+                    [minchar] => 1
                     [minperiod] => 1
-                    [tld] =>  cc.bh
+                    [tld] => com
                     [pricing] => Array
                         (
-                            [backorder] => Array
-                                (
-                                    [1] => 149.9900
-                                )
-
-                            [refund] => Array
-                                (
-                                    [1] => 149.9900
-                                )
-
-                            [restore] => Array
-                                (
-                                    [1] => 85.0000
-                                )
-
-                            [transfer] => Array
-                                (
-                                    [1] => 149.9900
-                                )
-
-                            [renew] => Array
-                                (
-                                    [1] => 149.9900
-                                )
-
                             [registration] => Array
                                 (
-                                    [1] => 149.9900
+                                    [1] => 10.8100
                                 )
-
-                        )
-
-                    [currencies] => Array
-                        (
-                            [backorder] => USD
-                            [refund] => USD
-                            [restore] => USD
-                            [transfer] => USD
-                            [renew] => USD
-                            [registration] => USD
-                        )
-
-                )
-
-            [1] => Array
-                (
-                    [id] => 1956
-                    [status] => Active
-                    [maxchar] => 63
-                    [maxperiod] => 10
-                    [minchar] => 3
-                    [minperiod] => 1
-                    [tld] => aaa.pro
-                    [pricing] => Array
-                        (
-                            [backorder] => Array
-                                (
-                                    [1] => 156.2500
-                                )
-
-                            [refund] => Array
-                                (
-                                    [1] => 156.2500
-                                )
-
-                            [restore] => Array
-                                (
-                                    [1] => 80.0000
-                                )
-
-                            [transfer] => Array
-                                (
-                                    [1] => 156.2500
-                                )
-
                             [renew] => Array
                                 (
-                                    [1] => 156.2500
+                                    [1] => 11.0100
                                 )
-
-                            [registration] => Array
+                            [transfer] => Array
                                 (
-                                    [1] => 156.2500
+                                    [1] => 10.6100
                                 )
-
+                            [restore] => Array
+                                (
+                                    [1] => 99.9000
+                                )
                         )
-
                     [currencies] => Array
                         (
-                            [backorder] => USD
-                            [refund] => USD
-                            [restore] => USD
-                            [transfer] => USD
-                            [renew] => USD
                             [registration] => USD
+                            [renew] => USD
+                            [transfer] => USD
+                            [restore] => USD
                         )
-
                 )
-
         )
-
     [result] => OK
 )
-
-
-```  
+```
 
 </details>
 
@@ -437,14 +359,14 @@ Array
 #### Domain Availability Check
 
 ```php
-$dna->CheckAvailability('example.com',1,'create');
+$dna->CheckAvailability(['hello','world123x0'], ['com','net'], 1, 'create');
 ```
 
 <details>
 <summary>Sample Output for Domain Availability Check</summary>
 
 ```php
- *Array
+Array
 (
     [0] => Array
         (
@@ -454,37 +376,12 @@ $dna->CheckAvailability('example.com',1,'create');
             [Command] => create
             [Period] => 1
             [IsFee] =>
-            [Price] => 9.9900
+            [Price] => 10.8100
             [Currency] => USD
             [Reason] => Domain exists
         )
 
     [1] => Array
-        (
-            [TLD] => net
-            [DomainName] => world123x0
-            [Status] => available
-            [Command] => create
-            [Period] => 1
-            [IsFee] =>
-            [Price] => 12.9900
-            [Currency] => USD
-            [Reason] =>
-        )
-    [2] => Array
-        (
-            [TLD] => net
-            [DomainName] => hello
-            [Status] => notavailable
-            [Command] => create
-            [Period] => 1
-            [IsFee] =>
-            [Price] => 12.9900
-            [Currency] => USD
-            [Reason] => Domain exists
-        )
-
-    [3] => Array
         (
             [TLD] => com
             [DomainName] => world123x0
@@ -492,11 +389,10 @@ $dna->CheckAvailability('example.com',1,'create');
             [Command] => create
             [Period] => 1
             [IsFee] =>
-            [Price] => 9.9900
+            [Price] => 10.8100
             [Currency] => USD
             [Reason] =>
         )
-
 )
 ```
 
@@ -514,7 +410,6 @@ $dna->GetDetails('example.com');
 <summary>Sample Output for Domain Details</summary>
 
 ```php
-
 Array
 (
     [data] => Array
@@ -523,7 +418,7 @@ Array
             [Status] => Active
             [DomainName] => example.com
             [AuthCode] => DHQ!K52
-            [LockStatus] => false
+            [LockStatus] => true
             [PrivacyProtectionStatus] => false
             [IsChildNameServer] => false
             [Contacts] => Array
@@ -532,65 +427,44 @@ Array
                         (
                             [ID] => 11854114
                         )
-
                     [Technical] => Array
                         (
                             [ID] => 11854114
                         )
-
                     [Administrative] => Array
                         (
                             [ID] => 11854114
                         )
-
                     [Registrant] => Array
                         (
                             [ID] => 11854114
                         )
-
                 )
-
             [Dates] => Array
                 (
                     [Start] => 2025-05-26T16:08:37
                     [Expiration] => 2027-05-26T16:08:37
                     [RemainingDays] => 449
                 )
-
             [NameServers] => Array
                 (
-                    "ns1.example.com",
-                    "ns2.example.com"
+                    [0] => ns1.example.com
+                    [1] => ns2.example.com
                 )
-
             [Additional] => Array
                 (
-                    [TRABISDOMAINCATEGORY] => 1
-                    [TRABISCITIZIENID] => 1112221111111
-                    [TRABISNAMESURNAME] => "Bunyamin Mutlu"
-                    [TRABISCOUNTRYID] => 215
-                    [TRABISCITYID] => 41
                 )
-
             [ChildNameServers] => Array
                 (
-                    Array
+                    [0] => Array
                         (
-                            [Name] => 'ns1.example.com'
-                            [IP] =>'1.2.3.4'
-                            )
-                    Array
-                        (
-                            [Name] => 'ns2.example.com'
-                            [IP] =>'2.3.4.5'
+                            [ns] => ns1.example.com
+                            [ip] => 1.2.3.4
                         )
                 )
-            
         )
-
     [result] => OK
 )
-
 ```
 
 </details>
@@ -600,32 +474,25 @@ Array
 #### Nameserver Modification
 
 ```php
-$dna->ModifyNameServer('example.com', [
-    'ns1'=>'ns1.example.com',
-    'ns2'=>'ns2.example.com'
-]);
+$dna->ModifyNameServer('example.com', ['ns1.example.com', 'ns2.example.com']);
 ```
 
 <details>
 <summary>Sample Output for Nameserver Modification</summary>
 
 ```php
-
 Array
 (
     [data] => Array
         (
             [NameServers] => Array
                 (
-                    [ns1] => ns1.example.com
-                    [ns2] => ns2.example.com
+                    [0] => ns1.example.com
+                    [1] => ns2.example.com
                 )
-
         )
-
     [result] => OK
 )
-
 ```
 
 
@@ -636,25 +503,21 @@ Array
 #### Enable Domain Lock
 
 ```php
-    
-$lock = $dna->EnableTheftProtectionLock('example.com');
-``` 
+$dna->EnableTheftProtectionLock('example.com');
+```
 
 <details>
 <summary>Sample Output for Enable Domain Lock</summary>
 
 ```php
-
 Array
 (
     [data] => Array
         (
             [LockStatus] => true
         )
-
     [result] => OK
 )
-
 ```
 
 </details>
@@ -664,25 +527,22 @@ Array
 #### Disable Domain Lock
 
 ```php
-$lock = $dna->DisableTheftProtectionLock('example.com');
+$dna->DisableTheftProtectionLock('example.com');
 ```
 
 <details>
 <summary>Sample Output for Disable Domain Lock</summary>
 
 ```php
-
 Array
 (
     [data] => Array
         (
             [LockStatus] => false
         )
-
     [result] => OK
 )
-
-``` 
+```
 
 </details>
 
@@ -692,30 +552,24 @@ Array
 
 ```php
 $dna->AddChildNameServer('example.com', 'ns1.example.com', '1.2.3.4');
-
 ```
 
 <details>
 <summary>Sample Output for Add Child Nameserver</summary>
 
 ```php
-
-
 Array
 (
     [data] => Array
         (
-            [NameServer] => test5.example.com
+            [NameServer] => ns1.example.com
             [IPAdresses] => Array
                 (
                     [0] => 1.2.3.4
                 )
-
         )
-
     [result] => OK
 )
-    
 ```
 
 </details>
@@ -725,8 +579,7 @@ Array
 #### Delete Child Nameserver
 
 ```php
-$dna->DeleteChildNameServer('example.com', 'test5.example.com');
-
+$dna->DeleteChildNameServer('example.com', 'ns1.example.com');
 ```
 
 <details>
@@ -735,6 +588,10 @@ $dna->DeleteChildNameServer('example.com', 'test5.example.com');
 ```php
 Array
 (
+    [data] => Array
+        (
+            [NameServer] => ns1.example.com
+        )
     [result] => OK
 )
 ```
@@ -747,7 +604,7 @@ Array
 #### Update Child Nameserver
 
 ```php
- $dna->ModifyChildNameServer('example.com', 'test5.example.com', '1.2.3.4');
+$dna->ModifyChildNameServer('example.com', 'ns1.example.com', '1.2.3.4');
 ```
 
 <details>
@@ -758,14 +615,12 @@ Array
 (
     [data] => Array
         (
-            [NameServer] => test5.example.com
+            [NameServer] => ns1.example.com
             [IPAdresses] => Array
                 (
                     [0] => 1.2.3.4
                 )
-
         )
-
     [result] => OK
 )
 ```
@@ -777,7 +632,7 @@ Array
 #### Modify Domain Privacy
 
 ```php
-$lock = $dna->ModifyPrivacyProtectionStatus('example.com', true, 'owners optional comment');
+$dna->ModifyPrivacyProtectionStatus('example.com', true, 'Owner request');
 ```
 
 <details>
@@ -787,11 +642,11 @@ $lock = $dna->ModifyPrivacyProtectionStatus('example.com', true, 'owners optiona
 ```php
 Array
 (
-    [result] => OK
-    [data] => => Array
+    [data] => Array
         (
-            [PrivacyProtectionStatus] =>trıe
-   )
+            [PrivacyProtectionStatus] => true
+        )
+    [result] => OK
 )
 ```
 
@@ -799,35 +654,38 @@ Array
 
 <hr style="border: 4px solid #000; border-style: dashed;">
 
-#### Save Domain Contact
+#### Save Domain Contacts
 
 ```php
-
 $contact = [
-    "FirstName"        => 'Bunyamin',
-    "LastName"         => 'Mutlu',
-    "Company"          => '',
-    "EMail"            => 'bun.mutlu@gmail.com',
-    "AddressLine1"     => 'adres 1 adres 1 adres 1 ',
-    "AddressLine2"     => 'test test',
+    "FirstName"        => 'John',
+    "LastName"         => 'Doe',
+    "Company"          => 'Example Corp',
+    "EMail"            => 'john@example.com',
+    "AddressLine1"     => '123 Main Street',
+    "AddressLine2"     => '',
     "AddressLine3"     => '',
-    "City"             => 'Kocaeli',
-    "Country"          => 'TR',
-    "Fax"              => '2626060026',
-    "FaxCountryCode"   => '90',
-    "Phone"            => '5555555555',
-    "PhoneCountryCode" => 90,
+    "City"             => 'Springfield',
+    "Country"          => 'US',
+    "Fax"              => '5559876543',
+    "FaxCountryCode"   => '1',
+    "Phone"            => '5551234567',
+    "PhoneCountryCode" => 1,
     "Type"             => 'Contact',
-    "ZipCode"          => '41829',
-    "State"            => 'GEBZE'
+    "ZipCode"          => '62701',
+    "State"            => 'IL'
 ];
 
-$dna->SaveContacts('example.com','ns1','1.2.3.4');
-
+$dna->SaveContacts('example.com', [
+    'Administrative' => $contact,
+    'Billing'        => $contact,
+    'Technical'      => $contact,
+    'Registrant'     => $contact
+]);
 ```
 
 <details>
-<summary>Sample Output for Save Domain Contact</summary>
+<summary>Sample Output for Save Domain Contacts</summary>
 
 ```php
 Array
@@ -855,32 +713,75 @@ Array
     [result] => OK
     [id] => 12345
     [active] => 1
-    [name] => TEST ACCOUNT 1
-    [balance] => 0.0000
+    [name] => Example Reseller
+    [balance] => 500.0000
     [currency] => USD
     [symbol] => $
     [balances] => Array
         (
             [0] => Array
                 (
-                    [balance] => 0.0000
+                    [balance] => 500.0000
                     [currency] => USD
                     [symbol] => $
                 )
-
             [1] => Array
                 (
-                    [balance] => 0.0000
+                    [balance] => 1500.0000
                     [currency] => TL
                     [symbol] => TL
                 )
-
         )
-
 )
 ```
 
 </details>
+
+<hr style="border: 4px solid #000; border-style: dashed;">
+
+### Testing
+
+The library includes PHPUnit tests that verify both SOAP and REST API response structures match.
+
+#### Setup
+
+1. Create a `.env.test` file in the project root:
+
+```env
+SOAP_USER=your-soap-username
+SOAP_PASS=your-soap-password
+REST_USER=your-uuid-rest-username
+REST_PASS=your-rest-api-token
+SOAP_DOMAIN=yourdomain.com
+REST_DOMAIN=yourdomain.com
+SOAP_DOMAIN_CONTACTS=yourdomain-with-contacts.com
+REST_DOMAIN_CONTACTS=yourdomain-with-contacts.com
+```
+
+2. Run all tests:
+
+```bash
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox
+```
+
+3. Run specific test suites:
+
+```bash
+# SOAP read operations only
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox --filter SoapRead
+
+# REST write operations only
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox --filter RestWrite
+```
+
+#### Test Structure
+
+| Test File | Description |
+|-----------|-------------|
+| `tests/SoapReadTest.php` | SOAP API read operations (GetDetails, GetList, CheckAvailability, etc.) |
+| `tests/SoapWriteTest.php` | SOAP API write operations (ModifyNameServer, Lock, ChildNS, etc.) |
+| `tests/RestReadTest.php` | REST API read operations |
+| `tests/RestWriteTest.php` | REST API write operations |
 
 <hr style="border: 4px solid #000; border-style: dashed;">
 
@@ -913,7 +814,7 @@ Array
 | 330  | Required parameter(s) not set ({0}).                                                                                                 |
 | –    | Make sure you send all contact objects full                                                                                          |
 | 340  | Price definition not found ({0}[{1}]-{2}{3}).                                                                                        |
-| 350  | Insufficent reseller balance. (Reseller Id : {0} - Current Balance : {1} {2}).                                                       |
+| 350  | Insufficient reseller balance. (Reseller Id : {0} - Current Balance : {1} {2}).                                                      |
 | 350  | Accounting currency does not match or the balance is not sufficient.                                                                 |
 | 360  | Invalid API request for field ({0}).                                                                                                 |
 | 360  | API quota exceeded!                                                                                                                  |
@@ -934,7 +835,7 @@ Array
 | 420  | Invalid Api command for contact {0}.                                                        |
 | 430  | Contact api not found.                                                                      |
 | 440  | Contact is not synced.                                                                      |
-| 450  | Too many domain contacts.. !                                                                |
+| 450  | Too many domain contacts!                                                                   |
 | 451  | Failed to proceed with contact update.                                                      |
 
 | CODE | DETAIL                                                                                                                               |
@@ -944,13 +845,13 @@ Array
 | 501  | Domain could not synchronized({0})                                                                                                   |
 | 502  | Internal transfer failed                                                                                                             |
 | 503  | Domain registration is not available.                                                                                                |
-| 504  | Domain information does not match .. Before :{0}                                                                                     |
+| 504  | Domain information does not match. Before :{0}                                                                                       |
 | 505  | Enter the Ip Address.                                                                                                                |
-| 506  | Domain Transfer Has Been Started But Contact Info Not Read ..                                                                        |
+| 506  | Domain Transfer Has Been Started But Contact Info Not Read.                                                                          |
 | 507  | Authorization error.                                                                                                                 |
 | 510  | Domain not found.                                                                                                                    |
-| 511  | Expried domains cannot be found.                                                                                                     |
-| 512  | Domain is not renewalable.                                                                                                           |
+| 511  | Expired domains cannot be found.                                                                                                     |
+| 512  | Domain is not renewable.                                                                                                             |
 | 513  | Domain is not in updateable status. It must be active for to be updated                                                              |
 | 514  | Redemption Period Expected.                                                                                                          |
 | 520  | Invalid Api command for domain "{0}".                                                                                                |
@@ -969,16 +870,15 @@ Array
 | 580  | Transfer not supported for tld "{0}".                                                                                                |
 | 581  | Child name server not found                                                                                                          |
 | 582  | Transfer started by other reseller.                                                                                                  |
-| 583  | Transfer not initalized. Please contact the support team.                                                                            |
+| 583  | Transfer not initialized. Please contact the support team.                                                                           |
 | 584  | Object status prohibits operation                                                                                                    |
 | 590  | Auth code is required for this transfer.                                                                                             |
 | 591  | Auth code is not valid.                                                                                                              |
 | 592  | Transfer lock exists on domain.                                                                                                      |
 | 593  | Domain cannot be transferred, Status Information and Transfer Lock must comply with the required criteria. (Status Information: #ok) |
-| 594  | Domain name server adress could not resolved ({0})                                                                                   |
+| 594  | Domain name server address could not resolved ({0})                                                                                  |
 | 595  | Contact information can not be read (whois.registrar.tld) Please make sure that privacy protection status open                       |
 | 596  | Contact information could not verified                                                                                               |
 | 597  | Tld Not Found                                                                                                                        |
 | 598  | Unknown error occurred                                                                                                               |
 | 599  | Domain Forward Not Found                                                                                                             |
-
