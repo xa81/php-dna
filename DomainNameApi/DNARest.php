@@ -310,9 +310,16 @@ class DNARest
                 }
             } else {
                 $parsedResponse           = json_decode($response_body, true);
+
+                // 302 redirect genellikle auth hatası
+                if ($response_status == 302 || $response_status == 301) {
+                    $parsedResponse = ['message' => 'Invalid API credentials', 'code' => 'CREDENTIALS', 'details' => 'Authentication failed. Check your API key and reseller ID.'];
+                }
+
                 $errorMessage             = $parsedResponse['message'] ?? ($parsedResponse['error']['message'] ?? $response_body);
                 $errorCode                = $parsedResponse['code'] ?? ($parsedResponse['error']['code'] ?? 'HTTP_' . $response_status);
-                $this->lastParsedResponse = $this->setError($errorCode, $errorMessage, $response_body);
+                $errorDetails             = $parsedResponse['details'] ?? ($parsedResponse['error']['details'] ?? $response_body);
+                $this->lastParsedResponse = $this->setError($errorCode, $errorMessage, $errorDetails);
                 $error                    = new Exception($errorMessage, $response_status);
 
                 $this->sendErrorToSentryAsync($error);
@@ -355,14 +362,11 @@ class DNARest
                     ],
                     [
                         'balance'  => $response['tryBalance'] ?? 0,
-                        'currency' => 'TRY',
-                        'symbol'   => '₺'
+                        'currency' => 'TL',
+                        'symbol'   => 'TL'
                     ]
                 ];
                 $resp['balances'] = $balances;
-
-                // SOAP ile uyum için data anahtarı ekle
-                $resp['data'] = $resp;
             } else {
                 $resp['result'] = self::RESULT_ERROR;
                 $resp['error']  = $this->setError('CREDENTIALS', 'Invalid response format',
@@ -374,7 +378,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'RESELLER_DETAILS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -391,41 +395,31 @@ class DNARest
 
             $balanceKey   = strtolower($currencyId) . 'Balance';
             $currencyName = strtoupper($currencyId);
-            switch ($currencyName) {
-                case 'USD':
-                    $currencySymbol = '$';
-                    break;
-                case 'TRY':
-                    $currencySymbol = '₺';
-                    break;
-                case 'EUR':
-                    $currencySymbol = '€';
-                    break;
-                case 'GBP':
-                    $currencySymbol = '£';
-                    break;
-                default:
-                    $currencySymbol = '';
-                    break;
-            }
+
+            // SOAP uyumu: TRY → TL, currency ID'leri eşle
+            $currencyMap = [
+                'USD' => ['id' => 2, 'name' => 'USD', 'symbol' => '$'],
+                'TRY' => ['id' => 1, 'name' => 'TL',  'symbol' => 'TL'],
+                'EUR' => ['id' => 3, 'name' => 'EUR', 'symbol' => '€'],
+                'GBP' => ['id' => 4, 'name' => 'GBP', 'symbol' => '£'],
+            ];
+            $mapped = $currencyMap[$currencyName] ?? ['id' => 0, 'name' => $currencyName, 'symbol' => ''];
+
             return [
-                'result' => self::RESULT_OK,
-                'data'   => [
-                    'ErrorCode'        => 0,
-                    'OperationMessage' => 'Command completed succesfully.',
-                    'OperationResult'  => 'SUCCESS',
-                    'Balance'          => number_format($response[$balanceKey] ?? 0, 2, '.', ''),
-                    'CurrencyId'       => 2,
-                    'CurrencyInfo'     => null,
-                    'CurrencyName'     => $currencyName,
-                    'CurrencySymbol'   => $currencySymbol
-                ]
+                'ErrorCode'        => 0,
+                'OperationMessage' => 'Command completed succesfully.',
+                'OperationResult'  => 'SUCCESS',
+                'Balance'          => number_format($response[$balanceKey] ?? 0, 2, '.', ''),
+                'CurrencyId'       => $mapped['id'],
+                'CurrencyInfo'     => null,
+                'CurrencyName'     => $mapped['name'],
+                'CurrencySymbol'   => $mapped['symbol']
             ];
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'BALANCE', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -448,36 +442,46 @@ class DNARest
                 }
             }
 
+            if (empty($queries)) {
+                return [
+                    'result' => self::RESULT_ERROR,
+                    'error'  => $this->setError('AVAILABILITY', 'Domain names not found.', 'No domain names provided for availability check')
+                ];
+            }
+
             $response = $this->request('POST', 'domains/bulk-search', $queries);
 
             $availabilityData = [];
-            if (isset($response) && is_array($response)) {
-                foreach ($response as $item) {
-                    $tld                = $item['info']['tld'] ?? substr(strrchr($item['info']['domainName'], "."), 1);
+            $items = $response['infos'] ?? $response;
+            if (is_array($items)) {
+                foreach ($items as $item) {
+                    if (!is_array($item)) continue;
+                    $tld       = strtolower($item['tld'] ?? substr(strrchr($item['domainName'] ?? '', "."), 1));
+                    $domainRaw = $item['domainName'] ?? '';
+                    $domainName = str_replace("." . $tld, '', strtolower($domainRaw));
+                    $status     = strtolower($item['status'] ?? '');
+                    $isAvailable = in_array($status, ['available', '1', 'true']);
+
                     $availabilityData[] = [
-                        "TLD"        => strtolower($tld),
-                        "DomainName" => str_replace("." . strtolower($tld), '', $item['info']['domainName']),
-                        "Status"     => $item['info']['available'] ? 'Available' : 'NotAvailable',
-                        "Command"    => $Command,
-                        "Period"     => $item['info']['period'] ?? $period,
-                        "IsFee"      => $item['info']['isFee'] ?? false,
-                        "Price"      => $item['info']['price'] ?? null,
-                        "Currency"   => $item['info']['currency'] ?? null,
-                        "Reason"     => $item['info']['reason'] ?? ($item['info']['available'] ? '' : 'Domain is not available'),
+                        "TLD"        => $tld,
+                        "DomainName" => $domainName,
+                        "Status"     => $isAvailable ? 'available' : 'notavailable',
+                        "Command"    => $command,
+                        "Period"     => $item['period'] ?? $period,
+                        "IsFee"      => $item['isPremium'] ?? false,
+                        "Price"      => isset($item['price']) ? number_format((float)$item['price'], 4, '.', '') : null,
+                        "Currency"   => $item['currency'] ?? null,
+                        "Reason"     => $item['reason'] ?? ($isAvailable ? '' : 'Domain is not available'),
                     ];
                 }
             }
 
-            return [
-                'result' => self::RESULT_OK,
-                'data'   => $availabilityData
-            ];
+            return $availabilityData;
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'AVAILABILITY', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString()),
-                'sl'     => $e->getTraceAsString()
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -495,17 +499,16 @@ class DNARest
             $response = $this->request('GET', 'domains', $params);
 
             return [
-                'result' => self::RESULT_OK,
                 'data'   => [
                     'Domains'    => isset($response['items']) ? array_map(function ($item) {
                         return [
-                            'ID'                => $item['domainName'] ?? '',
-                            'Status'            => (int)($item['status'] ?? 0),
-                            'DomainName'        => $item['domainName'] ?? '',
-                            'AuthCode'          => '',
-                            'LockStatus'        => $item['lockStatus'] ?? false,
-                            'a'                 => false,
-                            'IsChildNameServer' => false,
+                            'ID'                      => (int)($item['id'] ?? 0),
+                            'Status'                  => (string)($item['statusText'] ?? ($item['status'] ?? '')),
+                            'DomainName'              => $item['domainName'] ?? '',
+                            'AuthCode'                => $item['authCode'] ?? '',
+                            'LockStatus'              => !empty($item['lockStatus']) ? 'true' : 'false',
+                            'PrivacyProtectionStatus' => !empty($item['privacyProtectionStatus']) ? 'true' : 'false',
+                            'IsChildNameServer'       => !empty($item['hosts']) ? 'true' : 'false',
                             'Contacts'          => [
                                 'Billing'        => ['ID' => ''],
                                 'Technical'      => ['ID' => ''],
@@ -517,23 +520,22 @@ class DNARest
                                     strtotime($item['startDate'])) : '',
                                 'Expiration'    => isset($item['expirationDate']) ? date('Y-m-d\TH:i:s',
                                     strtotime($item['expirationDate'])) : '',
-                                'RemainingDays' => $item['remainingDay'] ?? 0,
+                                'RemainingDays' => (int)($item['remainingDay'] ?? 0),
                             ],
-                            'NameServers'       => [],
+                            'NameServers'       => $item['nameServers'] ?? [],
                             'Additional'        => [],
                             'ChildNameServers'  => []
                         ];
                     }, $response['items']) : [],
-                    'TotalCount' => (int)($response['totalCount'] ?? 0),
-                    'Page'       => 1,
-                    'PageSize'   => (int)($params['MaxResultCount'])
-                ]
+                ],
+                'result'     => self::RESULT_OK,
+                'TotalCount' => (int)($response['totalCount'] ?? 0),
             ];
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'DOMAIN_LIST', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -546,7 +548,7 @@ class DNARest
     public function getTldList($count = 20)
     {
         try {
-            $response = $this->get('products/tlds', ['pageSize' => $count]);
+            $response = $this->get('products/tlds', ['MaxResultCount' => $count, 'SkipCount' => 0]);
 
             $tldData   = [];
             $idCounter = 1;
@@ -615,7 +617,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'TLD_LIST', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -630,15 +632,12 @@ class DNARest
         try {
             $response = $this->request('GET', 'domains/info', ['DomainName' => $domainName]);
 
-            return [
-                'result' => self::RESULT_OK,
-                'data'   => $this->parseDomainInfo($response)
-            ];
+            return $this->parseDomainInfo($response);
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'DOMAIN_DETAILS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -665,7 +664,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'MODIFY_NS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -691,7 +690,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'ENABLE_LOCK', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -716,7 +715,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'DISABLE_LOCK', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -754,7 +753,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'ADD_CHILD_NS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -784,7 +783,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'DELETE_CHILD_NS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -810,7 +809,7 @@ class DNARest
                     ]
                 ]
             ];
-            $response = $this->request('PUT', 'domains/dns/host' . $nameServer, $payload);
+            $response = $this->request('PUT', 'domains/dns/host', $payload);
 
             return [
                 'result' => self::RESULT_OK,
@@ -823,7 +822,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'MODIFY_CHILD_NS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -836,12 +835,23 @@ class DNARest
     public function getContacts($domainName)
     {
         try {
-            $response = $this->request('GET', "domains/{$domainName}/contacts");
+            // Domain info contacts bilgisini zaten içeriyor
+            $domainInfo = $this->request('GET', 'domains/info', ['DomainName' => $domainName]);
+
+            // REST API contactType → SOAP key mapping
+            $typeMap = [
+                'Admin'      => 'Administrative',
+                'Billing'    => 'Billing',
+                'Tech'       => 'Technical',
+                'Registrant' => 'Registrant'
+            ];
 
             $contacts = [];
-            if (isset($response['contacts']) && is_array($response['contacts'])) {
-                foreach ($response['contacts'] as $contact) {
-                    $contacts[ucfirst(strtolower($contact['type']))] = $this->parseContactInfo($contact);
+            if (isset($domainInfo['contacts']) && is_array($domainInfo['contacts'])) {
+                foreach ($domainInfo['contacts'] as $contactItem) {
+                    $apiType = $contactItem['contactType'] ?? '';
+                    $soapKey = $typeMap[$apiType] ?? ucfirst(strtolower($apiType));
+                    $contacts[$soapKey] = $this->parseContactInfo(array_merge($contactItem, ['type' => $soapKey]));
                 }
             }
 
@@ -853,7 +863,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'GET_CONTACTS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -871,7 +881,7 @@ class DNARest
             foreach ($contacts as $type => $details) {
                 $payloadContacts[] = $this->parseContact($details, ucfirst(strtolower($type)));
             }
-            $response = $this->request('PUT', 'domains/' . $domainName . '/contacts', ['contacts' => $payloadContacts]);
+            $response = $this->request('PUT', 'domains/contacts/update', ['domainName' => $domainName, 'contacts' => $payloadContacts]);
 
             $parsedContacts = [];
             if (isset($response['contacts']) && is_array($response['contacts'])) {
@@ -888,7 +898,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'SAVE_CONTACTS', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -920,15 +930,12 @@ class DNARest
 
             $response = $this->request('POST', 'domains/transfer', $payload);
 
-            return [
-                'result' => self::RESULT_OK,
-                'data'   => $this->parseDomainInfo($response)
-            ];
+            return $this->parseDomainInfo($response);
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'TRANSFER_DOMAIN', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -941,7 +948,7 @@ class DNARest
     public function cancelTransfer($domainName)
     {
         try {
-            $response = $this->request('POST', "domains/{$domainName}/transfer/cancel");
+            $response = $this->request('POST', "domains/transfers/cancel", ['domainName' => $domainName]);
 
             return [
                 'result' => self::RESULT_OK,
@@ -954,7 +961,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'CANCEL_TRANSFER', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -967,7 +974,7 @@ class DNARest
     public function approveTransfer($domainName)
     {
         try {
-            $response = $this->request('POST', "domains/{$domainName}/transfer/approve");
+            $response = $this->request('POST', "domains/transfers/approve", ['domainName' => $domainName]);
 
             return [
                 'result' => self::RESULT_OK,
@@ -980,7 +987,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'APPROVE_TRANSFER', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -993,7 +1000,7 @@ class DNARest
     public function rejectTransfer($domainName)
     {
         try {
-            $response = $this->request('POST', "domains/{$domainName}/transfer/reject");
+            $response = $this->request('POST', "domains/transfers/reject", ['domainName' => $domainName]);
 
             return [
                 'result' => self::RESULT_OK,
@@ -1006,7 +1013,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'REJECT_TRANSFER', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -1020,16 +1027,14 @@ class DNARest
     public function renew($domainName, $period)
     {
         try {
-            $payload  = ['period' => $period];
-            $response = $this->request('POST', 'domains/' . $domainName . '/renew', $payload);
+            $payload  = ['domainName' => $domainName, 'period' => $period];
+            $response = $this->request('POST', 'domains/renew', $payload);
 
             if ($response["expirationDate"] ?? false) {
                 return [
                     'result' => self::RESULT_OK,
                     'data'   => [
-                        'DomainName'     => $domainName,
-                        'ExpirationDate' => $response['expirationDate'] ?? '',
-                        'Status'         => $response['status'] ?? 'Renewed'
+                        'ExpirationDate' => isset($response['expirationDate']) ? date('Y-m-d\TH:i:s', strtotime($response['expirationDate'])) : ''
                     ]
                 ];
             } else {
@@ -1043,7 +1048,7 @@ class DNARest
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'RENEW_DOMAIN', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -1084,17 +1089,14 @@ class DNARest
                 'additionalAttributes' => $additionalAttributes
             ];
 
-            $response = $this->request('POST', 'domains', $payload);
+            $response = $this->request('POST', 'domains/register', $payload);
 
-            return [
-                'result' => self::RESULT_OK,
-                'data'   => $this->parseDomainInfo($response)
-            ];
+            return $this->parseDomainInfo($response);
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'REGISTER_DOMAIN', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -1115,20 +1117,19 @@ class DNARest
             }
 
             $payload  = ['domainName' => $domainName, 'privacyStatus' => $status===true];
-            $response = $this->request('PUT', "domains/privacy", $payload);
+            $response = $this->request('POST', "domains/privacy", $payload);
 
             return [
-                'result' => self::RESULT_OK,
                 'data'   => [
-                    'DomainName'              => $domainName,
                     'PrivacyProtectionStatus' => $status
-                ]
+                ],
+                'result' => self::RESULT_OK
             ];
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
                 'error'  => $this->setError($e->getCode() ?: 'MODIFY_PRIVACY', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
+                    $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
     }
@@ -1140,20 +1141,33 @@ class DNARest
      */
     public function syncFromRegistry($domainName)
     {
-        try {
-            $response = $this->request('POST', "domains/{$domainName}/sync");
+        return $this->getDetails($domainName);
+    }
 
-            return [
-                'result' => self::RESULT_OK,
-                'data'   => $this->parseDomainInfo($response)
-            ];
-        } catch (Exception $e) {
-            return [
-                'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'SYNC_DOMAIN', $e->getMessage(),
-                    $this->lastResponse['raw_response'] ?? $e->getTraceAsString())
-            ];
+    /**
+     * Extract contact IDs from contacts array
+     * @param array $contacts
+     * @return array
+     */
+    private function parseContactIds($contacts)
+    {
+        $result = [
+            'Billing'        => ['ID' => 0],
+            'Technical'      => ['ID' => 0],
+            'Administrative' => ['ID' => 0],
+            'Registrant'     => ['ID' => 0]
+        ];
+        if (!is_array($contacts)) return $result;
+
+        $typeMap = ['Billing' => 'Billing', 'Tech' => 'Technical', 'Admin' => 'Administrative', 'Registrant' => 'Registrant'];
+        foreach ($contacts as $c) {
+            $apiType = $c['ContactType'] ?? ($c['contactType'] ?? '');
+            $soapKey = $typeMap[$apiType] ?? null;
+            if ($soapKey) {
+                $result[$soapKey]['ID'] = $c['handle'] ?? ($c['id'] ?? 0);
+            }
         }
+        return $result;
     }
 
     /**
@@ -1172,41 +1186,26 @@ class DNARest
                 'Status'                  => (string)($data['status'] ?? ''),
                 'DomainName'              => (string)($data['domainName'] ?? ($data['name'] ?? '')),
                 'AuthCode'                => (string)($data['authCode'] ?? ($data['eppCode'] ?? '')),
-                'LockStatus'              => $data['lockStatus'] ? 'true' : 'false',
-                'PrivacyProtectionStatus' => $data['privacyProtectionStatus'] ? 'true' : 'false',
+                'LockStatus'              => !empty($data['lockStatus']) ? 'true' : 'false',
+                'PrivacyProtectionStatus' => !empty($data['privacyProtectionStatus']) ? 'true' : 'false',
                 'IsChildNameServer'       => !empty($data['hosts']) ? 'true' : 'false',
-                'Contacts'                => [
-                    'Billing'        => [
-                        'ID' => $data['contacts'][array_search('Billing',
-                                array_column($data['contacts'], 'ContactType'))]['handle'] ?? 0
-                    ],
-                    'Technical'      => [
-                        'ID' => $data['contacts'][array_search('Tech',
-                                array_column($data['contacts'], 'ContactType'))]['handle'] ?? 0
-                    ],
-                    'Administrative' => [
-                        'ID' => $data['contacts'][array_search('Admin',
-                                array_column($data['contacts'], 'ContactType'))]['handle'] ?? 0
-                    ],
-                    'Registrant'     => [
-                        'ID' => $data['contacts'][array_search('Registrant',
-                                array_column($data['contacts'], 'ContactType'))]['handle'] ?? 0
-                    ]
-                ],
+                'Contacts'                => $this->parseContactIds($data['contacts'] ?? []),
                 'Dates'                   => [
-                    'Start'         => (string)($data['startDate'] ?? ''),
-                    'Expiration'    => (string)($data['expirationDate'] ?? ''),
+                    'Start'         => isset($data['startDate']) ? date('Y-m-d\TH:i:s', strtotime($data['startDate'])) : '',
+                    'Expiration'    => isset($data['expirationDate']) ? date('Y-m-d\TH:i:s', strtotime($data['expirationDate'])) : '',
                     'RemainingDays' => (int)($data['remainingDay'] ?? 0)
                 ],
                 'NameServers'             => isset($data['nameservers']) ? array_map('strval',
                     $data['nameservers']) : [],
                 'Additional'              => isset($data['additionalAttributes']) ? (array)$data['additionalAttributes'] : [],
                 'ChildNameServers'        => isset($data['hosts']) ? array_map(function ($ns) {
+                    // SOAP uyumu: ip string olarak dönüyor (son IP)
+                    $ips = array_map(function ($ip) {
+                        return $ip['ipAddress'];
+                    }, $ns['ipAddresses'] ?? []);
                     return [
                         'ns' => $ns['name'],
-                        'ip' => array_map(function ($ip) {
-                            return $ip['ipAddress'];
-                        }, $ns['ipAddresses'] ?? [])
+                        'ip' => !empty($ips) ? end($ips) : ''
                     ];
                 }, $data['hosts']) : []
             ],
@@ -1225,30 +1224,30 @@ class DNARest
             return [];
         }
         return [
-            'ID'         => $data['id'] ?? '',
+            'ID'         => $data['handle'] ?? ($data['id'] ?? ''),
             'Status'     => $data['status'] ?? 'Active',
             'AuthCode'   => $data['authCode'] ?? '',
             'FirstName'  => $data['firstName'] ?? '',
             'LastName'   => $data['lastName'] ?? '',
-            'Company'    => $data['organizationName'] ?? ($data['company'] ?? ''),
-            'EMail'      => $data['emailAddress'] ?? ($data['email'] ?? ''),
+            'Company'    => $data['companyName'] ?? ($data['organizationName'] ?? ($data['company'] ?? '')),
+            'EMail'      => $data['eMail'] ?? ($data['emailAddress'] ?? ($data['email'] ?? '')),
             'Type'       => $data['type'] ?? '',
             'Address'    => [
-                'Line1'   => $data['addressLine1'] ?? ($data['street1'] ?? ''),
-                'Line2'   => $data['addressLine2'] ?? ($data['street2'] ?? ''),
-                'Line3'   => $data['addressLine3'] ?? ($data['street3'] ?? ''),
-                'State'   => $data['stateOrProvince'] ?? ($data['state'] ?? ''),
+                'Line1'   => $data['address'] ?? ($data['addressLine1'] ?? ''),
+                'Line2'   => $data['addressLine2'] ?? '',
+                'Line3'   => $data['addressLine3'] ?? '',
+                'State'   => $data['state'] ?? ($data['stateOrProvince'] ?? ''),
                 'City'    => $data['city'] ?? '',
-                'Country' => $data['countryCode'] ?? ($data['country'] ?? ''),
+                'Country' => $data['country'] ?? ($data['countryCode'] ?? ''),
                 'ZipCode' => $data['postalCode'] ?? ($data['zipCode'] ?? '')
             ],
             'Phone'      => [
                 'Phone' => [
-                    'Number'      => $data['phoneNumber'] ?? ($data['phone'] ?? ''),
+                    'Number'      => $data['phone'] ?? ($data['phoneNumber'] ?? ''),
                     'CountryCode' => $data['phoneCountryCode'] ?? ''
                 ],
                 'Fax'   => [
-                    'Number'      => $data['faxNumber'] ?? ($data['fax'] ?? ''),
+                    'Number'      => $data['fax'] ?? ($data['faxNumber'] ?? ''),
                     'CountryCode' => $data['faxCountryCode'] ?? ''
                 ]
             ],
@@ -1264,21 +1263,45 @@ class DNARest
      */
     private function parseContact($contact, $type)
     {
+        // SOAP type → REST API type mapping
+        $typeMap = [
+            'Administrative' => 'Admin',
+            'Technical'      => 'Tech',
+            'Billing'        => 'Billing',
+            'Registrant'     => 'Registrant'
+        ];
+        $apiType = $typeMap[$type] ?? $type;
+
+        // Input hem flat (AddressLine1) hem nested (Address.Line1) olabilir
+        $address = $contact['AddressLine1'] ?? ($contact['Address']['Line1'] ?? '');
+        if (!empty($contact['AddressLine2'] ?? ($contact['Address']['Line2'] ?? ''))) {
+            $address .= ' ' . ($contact['AddressLine2'] ?? ($contact['Address']['Line2'] ?? ''));
+        }
+
+        $phone     = $contact['Phone'] ?? ($contact['Phone']['Phone']['Number'] ?? '');
+        $phoneCc   = $contact['PhoneCountryCode'] ?? ($contact['Phone']['Phone']['CountryCode'] ?? '');
+        $fax       = $contact['Fax'] ?? ($contact['Phone']['Fax']['Number'] ?? '');
+        $faxCc     = $contact['FaxCountryCode'] ?? ($contact['Phone']['Fax']['CountryCode'] ?? '');
+
+        // Array ise string olarak al (nested format)
+        if (is_array($phone)) { $phoneCc = $phone['Phone']['CountryCode'] ?? ''; $phone = $phone['Phone']['Number'] ?? ''; }
+        if (is_array($fax)) { $faxCc = $fax['Fax']['CountryCode'] ?? ''; $fax = $fax['Fax']['Number'] ?? ''; }
+
         return [
-            'type'             => $type,
+            'contactType'      => $apiType,
             'firstName'        => $contact['FirstName'] ?? '',
             'lastName'         => $contact['LastName'] ?? '',
-            'organizationName' => $contact['Company'] ?? '',
-            'emailAddress'     => $contact['EMail'] ?? '',
-            'addressLine1'     => $contact['Address']['Line1'] ?? '',
-            'addressLine2'     => $contact['Address']['Line2'] ?? '',
-            'addressLine3'     => $contact['Address']['Line3'] ?? '',
-            'city'             => $contact['Address']['City'] ?? '',
-            'stateOrProvince'  => $contact['Address']['State'] ?? '',
-            'countryCode'      => $contact['Address']['Country'] ?? '',
-            'postalCode'       => $contact['Address']['ZipCode'] ?? '',
-            'phoneNumber'      => ($contact['Phone']['Phone']['CountryCode'] ?? '') . ($contact['Phone']['Phone']['Number'] ?? ''),
-            'faxNumber'        => ($contact['Phone']['Fax']['CountryCode'] ?? '') . ($contact['Phone']['Fax']['Number'] ?? '')
+            'companyName'      => $contact['Company'] ?? '',
+            'eMail'            => $contact['EMail'] ?? '',
+            'address'          => $address,
+            'city'             => $contact['City'] ?? ($contact['Address']['City'] ?? ''),
+            'state'            => $contact['State'] ?? ($contact['Address']['State'] ?? ''),
+            'country'          => $contact['Country'] ?? ($contact['Address']['Country'] ?? ''),
+            'postalCode'       => $contact['ZipCode'] ?? ($contact['Address']['ZipCode'] ?? ''),
+            'phoneCountryCode' => (string)$phoneCc,
+            'phone'            => (string)$phone,
+            'faxCountryCode'   => (string)$faxCc,
+            'fax'              => (string)$fax,
         ];
     }
 

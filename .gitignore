@@ -2,3 +2,4 @@
 /vendor/
 .idea
 DomainNameApi/ip_addr.cache
+/DomainNameApi/.ip_addr.cache
