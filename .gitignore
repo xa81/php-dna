@@ -4,5 +4,7 @@
 DomainNameApi/ip_addr.cache
 /DomainNameApi/.ip_addr.cache
 /tests/manual/
+/tests/capture_responses.php
+/tests/compare_responses.php
 /.phpunit.result.cache
 .env.test
