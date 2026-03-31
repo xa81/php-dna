@@ -210,6 +210,17 @@ class DNARest
     }
 
 
+    /**
+     * Format HTTP error codes to match SOAP error format: API_{code}_ERROR
+     */
+    private function formatErrorCode($code): string
+    {
+        if (is_numeric($code)) {
+            return 'API_' . $code . '_ERROR';
+        }
+        return (string)$code;
+    }
+
     private function get(string $url, array $params = [])
     {
         return $this->request('GET', $url, $params);
@@ -302,10 +313,8 @@ class DNARest
                         'operation'       => $this->lastFunction,
                         'duration'        => floatval($duration),
                         'success'         => true,
-                        'timestamp'       => gmdate('Y-m-d\TH:i:s.', time()) . sprintf('%03d',
-                                round(fmod(microtime(true), 1) * 1000)) . 'Z',
-                        'start_timestamp' => gmdate('Y-m-d\TH:i:s.', (int)$this->startAt) . sprintf('%03d',
-                                round(fmod($this->startAt, 1) * 1000)) . 'Z'
+                        'timestamp'       => gmdate('Y-m-d\TH:i:s.', time()) . sprintf('%03d', round(fmod(microtime(true), 1) * 1000)) . 'Z',
+                        'start_timestamp' => gmdate('Y-m-d\TH:i:s.', (int)$this->startAt) . sprintf('%03d',  round(fmod($this->startAt, 1) * 1000)) . 'Z'
                     ]);
                 }
             } else {
@@ -345,23 +354,23 @@ class DNARest
             if (isset($response['resellerId'])) {
                 $resp['result'] = self::RESULT_OK;
                 $resp['id']     = $response['resellerId'];
-                $resp['name']   = $response['resellerName'] ?? '';
                 $resp['active'] = true; // API'den status gelmiyor, varsayılan true
+                $resp['name']   = $response['resellerName'] ?? '';
 
                 // Ana para birimi USD, ikincil TRY
-                $resp['balance']  = $response['usdBalance'] ?? 0;
+                $resp['balance']  = (string)($response['usdBalance'] ?? 0);
                 $resp['currency'] = 'USD';
                 $resp['symbol']   = '$';
 
                 // Balances array'i
                 $balances         = [
                     [
-                        'balance'  => $response['usdBalance'] ?? 0,
+                        'balance'  => (string)($response['usdBalance'] ?? 0),
                         'currency' => 'USD',
                         'symbol'   => '$'
                     ],
                     [
-                        'balance'  => $response['tryBalance'] ?? 0,
+                        'balance'  => (string)($response['tryBalance'] ?? 0),
                         'currency' => 'TL',
                         'symbol'   => 'TL'
                     ]
@@ -377,7 +386,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'RESELLER_DETAILS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'RESELLER_DETAILS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -418,7 +427,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'BALANCE', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'BALANCE', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -471,7 +480,7 @@ class DNARest
                         "IsFee"      => $item['isPremium'] ?? false,
                         "Price"      => isset($item['price']) ? number_format((float)$item['price'], 4, '.', '') : null,
                         "Currency"   => $item['currency'] ?? null,
-                        "Reason"     => $item['reason'] ?? ($isAvailable ? '' : 'Domain is not available'),
+                        "Reason"     => $item['reason'] ?? null,
                     ];
                 }
             }
@@ -480,7 +489,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'AVAILABILITY', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'AVAILABILITY', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -534,7 +543,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'DOMAIN_LIST', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'DOMAIN_LIST', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -574,7 +583,8 @@ class DNARest
                                     // Dizi ise
                                     foreach ($apiValue as $priceInfo) {
                                         if (is_array($priceInfo)) {
-                                            $period                     = $priceInfo['period'] ?? 1;
+                                            $period = (int)($priceInfo['period'] ?? 1);
+                                            if ($period < 1) $period = 1; // SOAP uyumu: period 0 → 1
                                             $price                      = isset($priceInfo['price']) ? number_format((float)$priceInfo['price'],
                                                 4, '.', '') : '0.0000';
                                             $pricing[$outType][$period] = $price;
@@ -583,7 +593,8 @@ class DNARest
                                     }
                                 } elseif (is_array($apiValue)) {
                                     // Obje ise
-                                    $period                     = $apiValue['period'] ?? 1;
+                                    $period = (int)($apiValue['period'] ?? 1);
+                                    if ($period < 1) $period = 1; // SOAP uyumu: period 0 → 1
                                     $price                      = isset($apiValue['price']) ? number_format((float)$apiValue['price'],
                                         4, '.', '') : '0.0000';
                                     $pricing[$outType][$period] = $price;
@@ -591,6 +602,11 @@ class DNARest
                                 }
                             }
                         }
+                    }
+
+                    // Sort pricing arrays by key (period) - SOAP uses 1-based ascending order
+                    foreach ($pricing as $type => $periods) {
+                        ksort($pricing[$type], SORT_NUMERIC);
                     }
 
                     $tldData[] = [
@@ -610,13 +626,13 @@ class DNARest
             }
 
             return [
-                'result' => self::RESULT_OK,
-                'data'   => $tldData
+                'data'   => $tldData,
+                'result' => self::RESULT_OK
             ];
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'TLD_LIST', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'TLD_LIST', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -636,7 +652,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'DOMAIN_DETAILS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'DOMAIN_DETAILS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -663,7 +679,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'MODIFY_NS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'MODIFY_NS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -689,7 +705,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'ENABLE_LOCK', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'ENABLE_LOCK', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -714,7 +730,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'DISABLE_LOCK', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'DISABLE_LOCK', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -752,7 +768,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'ADD_CHILD_NS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'ADD_CHILD_NS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -782,7 +798,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'DELETE_CHILD_NS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'DELETE_CHILD_NS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -821,7 +837,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'MODIFY_CHILD_NS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'MODIFY_CHILD_NS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -855,14 +871,22 @@ class DNARest
                 }
             }
 
+            // SOAP key order: Administrative, Billing, Registrant, Technical
+            $orderedContacts = [];
+            foreach (['Administrative', 'Billing', 'Registrant', 'Technical'] as $key) {
+                if (isset($contacts[$key])) {
+                    $orderedContacts[$key] = $contacts[$key];
+                }
+            }
+
             return [
-                'result' => self::RESULT_OK,
-                'data'   => ['contacts' => $contacts]
+                'data'   => ['contacts' => $orderedContacts],
+                'result' => self::RESULT_OK
             ];
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'GET_CONTACTS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'GET_CONTACTS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -897,7 +921,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'SAVE_CONTACTS', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'SAVE_CONTACTS', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -934,7 +958,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'TRANSFER_DOMAIN', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'TRANSFER_DOMAIN', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -960,7 +984,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'CANCEL_TRANSFER', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'CANCEL_TRANSFER', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -986,7 +1010,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'APPROVE_TRANSFER', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'APPROVE_TRANSFER', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -1012,7 +1036,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'REJECT_TRANSFER', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'REJECT_TRANSFER', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -1038,16 +1062,16 @@ class DNARest
                     ]
                 ];
             } else {
+                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_RENEW] " . self::$DEFAULT_ERRORS['DOMAIN_RENEW']['description']));
                 return [
                     'result' => self::RESULT_ERROR,
                     'error'  => $this->setError("DOMAIN_RENEW")
                 ];
-                $this->sendErrorToSentryAsync(new Exception("[DOMAIN_RENEW] " . self::$DEFAULT_ERRORS['DOMAIN_RENEW']['description']));
             }
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'RENEW_DOMAIN', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'RENEW_DOMAIN', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -1095,7 +1119,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'REGISTER_DOMAIN', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'REGISTER_DOMAIN', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }
@@ -1128,7 +1152,7 @@ class DNARest
         } catch (Exception $e) {
             return [
                 'result' => self::RESULT_ERROR,
-                'error'  => $this->setError($e->getCode() ?: 'MODIFY_PRIVACY', $e->getMessage(),
+                'error'  => $this->setError($this->formatErrorCode($e->getCode()) ?: 'MODIFY_PRIVACY', $e->getMessage(),
                     $this->lastParsedResponse['Details'] ?? ($this->lastResponse['raw_response'] ?? $e->getMessage()))
             ];
         }

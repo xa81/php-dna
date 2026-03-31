@@ -9,7 +9,7 @@ trait SharedApiConfigAndUtilsTrait
     /**
      * Version of the library
      */
-    public static $VERSION = '2.2.0'; // Bu değer her iki sınıfta da aynı olmalı, gerekirse güncellenmeli
+    public static $VERSION = '3.0.0'; // Bu değer her iki sınıfta da aynı olmalı, gerekirse güncellenmeli
 
     const PERFORMANCE_SAMPLE_RATE = 25; // 2.5% (25 out of 1000)
     const RESULT_OK      = 'OK';
@@ -29,6 +29,7 @@ trait SharedApiConfigAndUtilsTrait
         'balance is not sufficient',
         'Price definition not found',
         'TLD is not supported',
+        'Invalid API credentials',
     ];
 
     public static $DEFAULT_ERRORS = [
@@ -115,7 +116,7 @@ trait SharedApiConfigAndUtilsTrait
     ];
 
     public static $DEFAULT_CACHE_TTL = 512;
-    public static $DEFAULT_TIMEOUT   = 20;
+    public static $DEFAULT_TIMEOUT   = 30;
     public static $DEFAULT_REASON    = 'Owner request';
 
     private static $APPLICATIONS = [
