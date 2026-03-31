@@ -14,15 +14,39 @@
 
 ### Minimum Gereksinimler
 
-- PHP7.4 veya daha üstü (Önerilen 8.1) 
-- PHP SOAPClient eklentisi aktif olmalıdır.
+- PHP7.4 veya daha üstü (Önerilen 8.1)
+- PHP SOAPClient eklentisi aktif olmalıdır (SOAP modu için).
+- PHP cURL eklentisi aktif olmalıdır (REST modu için).
+
+### SOAP ve REST API
+
+Kütüphane iki API modunu destekler. Mod, kullanıcı adı formatına göre otomatik olarak seçilir:
+
+| Mod | Kullanıcı Adı Formatı | Örnek |
+|-----|----------------------|-------|
+| **SOAP** (Eski) | Normal kullanıcı adı | `myreseller` |
+| **REST** (Yeni) | UUID formatı | `fd2bea54-99ea-16b6-c195-3a1b9079df00` |
+
+Her iki mod da aynı response yapısını döner, entegrasyon kodunuzu değiştirmeden geçiş yapabilirsiniz.
+
+```php
+// SOAP mode (legacy credentials)
+$dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('myreseller', 'mypassword');
+
+// REST mode (UUID credentials)
+$dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('fd2bea54-99ea-16b6-c195-3a1b9079df00', 'your-api-token');
+
+// Both modes use the exact same method calls
+$details = $dna->GetResellerDetails();
+$domains = $dna->GetList();
+```
 
 ### A) Manuel Kullanım
 
 Dosyaları indirin [examples](examples) klasörünün içindeki örnekleri inceleyin.
 
 ```php
-require_once __DIR__.'/src/DomainNameAPI_PHPLibrary.php';
+require_once __DIR__.'/DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('username','password');
 ```
@@ -69,7 +93,7 @@ $contact = [
     "State"            => 'IL'
 ];
 
-$a->RegisterWithContactInfo(
+$dna->RegisterWithContactInfo(
     'example.com',
     1,
     [
@@ -81,13 +105,13 @@ $a->RegisterWithContactInfo(
     ["ns1.example.com", "ns2.example.com"],
     true,
     false,
-    //Addional attributes sadece .tr domainler için gereklidir.
+    //Additional attributes sadece .tr domainler için gereklidir.
     [
         'TRABISDOMAINCATEGORY' => 1,
         'TRABISCITIZIENID'     => '12345678901',
         'TRABISNAMESURNAME'    => 'John Doe',
         'TRABISCOUNTRYID'      => '840',
-        'TRABISCITYID'        => '17'
+        'TRABISCITYID'         => '17'
     ]);
 ```
 
@@ -277,13 +301,13 @@ Array
                 (
                     [0] => Array
                     (
-                        [Name] => ns1.example.com
-                        [IP] => 1.2.3.4
+                        [ns] => ns1.example.com
+                        [ip] => 1.2.3.4
                     )
                     [1] => Array
                     (
-                        [Name] => ns2.example.com
-                        [IP] => 2.3.4.5
+                        [ns] => ns2.example.com
+                        [ip] => 2.3.4.5
                     )
                 )
             )
@@ -440,14 +464,14 @@ Array
 #### Alan adı uygunluğu kontrolü
 
 ```php
-$dna->CheckAvailability('example.com',1,'create');
+$dna->CheckAvailability(['hello','world123x0'], ['com','net'], 1, 'create');
 ```
 
 <details>
 <summary>Alan adı uygunluğu kontrolü Örnek Çıktı</summary>
 
 ```php
- *Array
+Array
 (
     [0] => Array
         (
@@ -562,30 +586,20 @@ Array
 
             [NameServers] => Array
                 (
-                    "ns1.example.com",
-                    "ns2.example.com"
+                    [0] => ns1.example.com
+                    [1] => ns2.example.com
                 )
 
             [Additional] => Array
                 (
-                    [TRABISDOMAINCATEGORY] => 1
-                    [TRABISCITIZIENID] => 1112221111111
-                    [TRABISNAMESURNAME] => "Bunyamin Mutlu"
-                    [TRABISCOUNTRYID] => 215
-                    [TRABISCITYID] => 41
                 )
 
             [ChildNameServers] => Array
                 (
-                    Array
+                    [0] => Array
                         (
-                            [Name] => 'ns1.example.com'
-                            [IP] =>'1.2.3.4'
-                            )
-                    Array
-                        (
-                            [Name] => 'ns2.example.com'
-                            [IP] =>'2.3.4.5'
+                            [ns] => ns1.example.com
+                            [ip] => 1.2.3.4
                         )
                 )
             
@@ -603,10 +617,7 @@ Array
 #### Nameserver Düzenlemesi
 
 ```php
-$dna->ModifyNameServer('example.com', [
-    'ns1'=>'ns1.example.com',
-    'ns2'=>'ns2.example.com'
-]);
+$dna->ModifyNameServer('example.com', ['ns1.example.com', 'ns2.example.com']);
 ```
 
 <details>
@@ -620,12 +631,10 @@ Array
         (
             [NameServers] => Array
                 (
-                    [ns1] => ns1.example.com
-                    [ns2] => ns2.example.com
+                    [0] => ns1.example.com
+                    [1] => ns2.example.com
                 )
-
         )
-
     [result] => OK
 )
 
@@ -743,6 +752,10 @@ $dna->DeleteChildNameServer('example.com', 'test5.example.com');
 ```php
 Array
 (
+    [data] => Array
+        (
+            [NameServer] => ns1.example.com
+        )
     [result] => OK
 )
 ```
@@ -795,11 +808,11 @@ $lock = $dna->ModifyPrivacyProtectionStatus('example.com', true, 'owners optiona
 ```php
 Array
 (
-    [result] => OK
-    [data] => => Array
+    [data] => Array
         (
-            [PrivacyProtectionStatus] =>trıe
-   )
+            [PrivacyProtectionStatus] => true
+        )
+    [result] => OK
 )
 ```
 
@@ -812,25 +825,30 @@ Array
 ```php
 
 $contact = [
-    "FirstName"        => 'Bunyamin',
-    "LastName"         => 'Mutlu',
-    "Company"          => '',
-    "EMail"            => 'bun.mutlu@gmail.com',
-    "AddressLine1"     => 'adres 1 adres 1 adres 1 ',
-    "AddressLine2"     => 'test test',
+    "FirstName"        => 'John',
+    "LastName"         => 'Doe',
+    "Company"          => 'Example Corp',
+    "EMail"            => 'john@example.com',
+    "AddressLine1"     => '123 Main Street',
+    "AddressLine2"     => '',
     "AddressLine3"     => '',
-    "City"             => 'Kocaeli',
-    "Country"          => 'TR',
-    "Fax"              => '2626060026',
-    "FaxCountryCode"   => '90',
-    "Phone"            => '5555555555',
-    "PhoneCountryCode" => 90,
+    "City"             => 'Springfield',
+    "Country"          => 'US',
+    "Fax"              => '5559876543',
+    "FaxCountryCode"   => '1',
+    "Phone"            => '5551234567',
+    "PhoneCountryCode" => 1,
     "Type"             => 'Contact',
-    "ZipCode"          => '41829',
-    "State"            => 'GEBZE'
+    "ZipCode"          => '62701',
+    "State"            => 'IL'
 ];
 
-$dna->SaveContacts('example.com','ns1','1.2.3.4');
+$dna->SaveContacts('example.com', [
+    'Administrative' => $contact,
+    'Billing'        => $contact,
+    'Technical'      => $contact,
+    'Registrant'     => $contact
+]);
 
 ```
 
@@ -895,6 +913,52 @@ Array
 <hr style="border: 4px solid #000; border-style: dashed;">
 
 
+
+### Testler
+
+Kütüphane, hem SOAP hem REST API yanıt yapılarının eşleştiğini doğrulayan PHPUnit testleri içerir.
+
+#### Setup
+
+1. Create a `.env.test` file in the project root:
+
+```env
+SOAP_USER=your-soap-username
+SOAP_PASS=your-soap-password
+REST_USER=your-uuid-rest-username
+REST_PASS=your-rest-api-token
+SOAP_DOMAIN=yourdomain.com
+REST_DOMAIN=yourdomain.com
+SOAP_DOMAIN_CONTACTS=yourdomain-with-contacts.com
+REST_DOMAIN_CONTACTS=yourdomain-with-contacts.com
+```
+
+2. Run all tests:
+
+```bash
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox
+```
+
+3. Run specific test suites:
+
+```bash
+# SOAP read operations only
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox --filter SoapRead
+
+# REST write operations only
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox --filter RestWrite
+```
+
+#### Test Structure
+
+| Test File | Description |
+|-----------|-------------|
+| `tests/SoapReadTest.php` | SOAP API read operations (GetDetails, GetList, CheckAvailability, etc.) |
+| `tests/SoapWriteTest.php` | SOAP API write operations (ModifyNameServer, Lock, ChildNS, etc.) |
+| `tests/RestReadTest.php` | REST API read operations |
+| `tests/RestWriteTest.php` | REST API write operations |
+
+<hr style="border: 4px solid #000; border-style: dashed;">
 
 ## Dönüş ve Hata Kodları ile Açıklamaları
 

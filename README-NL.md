@@ -15,14 +15,38 @@
 ### Minimale Vereisten
 
 - PHP7.4 of hoger (Aanbevolen 8.1)
-- PHP SOAPClient extensie moet actief zijn.
+- PHP SOAPClient extensie moet actief zijn (voor SOAP-modus).
+- PHP cURL extensie moet actief zijn (voor REST-modus).
+
+### SOAP vs REST API
+
+De bibliotheek ondersteunt twee API-modi. De modus wordt automatisch geselecteerd op basis van het gebruikersnaamformaat:
+
+| Modus | Gebruikersnaamformaat | Voorbeeld |
+|-------|---------------------|-----------|
+| **SOAP** (Legacy) | Reguliere gebruikersnaam | `myreseller` |
+| **REST** (Nieuw) | UUID-formaat | `fd2bea54-99ea-16b6-c195-3a1b9079df00` |
+
+Beide modi retourneren dezelfde responsstructuur, zodat u tussen hen kunt wisselen zonder uw integratiecode te wijzigen.
+
+```php
+// SOAP mode (legacy credentials)
+$dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('myreseller', 'mypassword');
+
+// REST mode (UUID credentials)
+$dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('fd2bea54-99ea-16b6-c195-3a1b9079df00', 'your-api-token');
+
+// Both modes use the exact same method calls
+$details = $dna->GetResellerDetails();
+$domains = $dna->GetList();
+```
 
 ### A) Handmatig Gebruik
 
 Download de bestanden en bekijk de voorbeelden in de [examples](examples) map.
 
 ```php
-require_once __DIR__.'/src/DomainNameAPI_PHPLibrary.php';
+require_once __DIR__.'/DomainNameApi/DomainNameAPI_PHPLibrary.php';
 
 $dna = new \DomainNameApi\DomainNameAPI_PHPLibrary('username','password');
 ```
@@ -65,7 +89,7 @@ $contact = [
     "State"            => 'IL'
 ];
 
-$a->RegisterWithContactInfo(
+$dna->RegisterWithContactInfo(
     'example.com',
     1,
     [
@@ -77,13 +101,13 @@ $a->RegisterWithContactInfo(
     ["ns1.example.com", "ns2.example.com"],
     true,
     false,
-    //Additional attributes zijn alleen vereist voor .tr domeinen.
+    // Additional attributes zijn alleen vereist voor .tr domeinen.
     [
         'TRABISDOMAINCATEGORY' => 1,
         'TRABISCITIZIENID'     => '12345678901',
         'TRABISNAMESURNAME'    => 'John Doe',
         'TRABISCOUNTRYID'      => '840',
-        'TRABISCITYID'        => '17'
+        'TRABISCITYID'         => '17'
     ]);
 ```
 
@@ -415,6 +439,10 @@ $dna->DeleteChildNameServer('example.com', 'ns1.example.com');
 ```php
 Array
 (
+    [data] => Array
+        (
+            [NameServer] => ns1.example.com
+        )
     [result] => OK
 )
 ```
@@ -479,25 +507,30 @@ Array
 
 ```php
 $contact = [
-    "FirstName"        => 'Bunyamin',
-    "LastName"         => 'Mutlu',
-    "Company"          => '',
-    "EMail"            => 'bun.mutlu@gmail.com',
-    "AddressLine1"     => 'adres 1 adres 1 adres 1 ',
-    "AddressLine2"     => 'test test',
+    "FirstName"        => 'John',
+    "LastName"         => 'Doe',
+    "Company"          => 'Example Corp',
+    "EMail"            => 'john@example.com',
+    "AddressLine1"     => '123 Main Street',
+    "AddressLine2"     => '',
     "AddressLine3"     => '',
-    "City"             => 'Kocaeli',
-    "Country"          => 'TR',
-    "Fax"              => '2626060026',
-    "FaxCountryCode"   => '90',
-    "Phone"            => '5555555555',
-    "PhoneCountryCode" => 90,
+    "City"             => 'Springfield',
+    "Country"          => 'US',
+    "Fax"              => '5559876543',
+    "FaxCountryCode"   => '1',
+    "Phone"            => '5551234567',
+    "PhoneCountryCode" => 1,
     "Type"             => 'Contact',
-    "ZipCode"          => '41829',
-    "State"            => 'GEBZE'
+    "ZipCode"          => '62701',
+    "State"            => 'IL'
 ];
 
-$dna->SaveContacts('example.com','ns1','1.2.3.4');
+$dna->SaveContacts('example.com', [
+    'Administrative' => $contact,
+    'Billing'        => $contact,
+    'Technical'      => $contact,
+    'Registrant'     => $contact
+]);
 ```
 
 <details>
@@ -552,6 +585,52 @@ Array
 ```
 
 </details>
+
+<hr style="border: 4px solid #000; border-style: dashed;">
+
+### Tests
+
+De bibliotheek bevat PHPUnit-tests die verifiëren dat de SOAP- en REST API-responsstructuren overeenkomen.
+
+#### Setup
+
+1. Create a `.env.test` file in the project root:
+
+```env
+SOAP_USER=your-soap-username
+SOAP_PASS=your-soap-password
+REST_USER=your-uuid-rest-username
+REST_PASS=your-rest-api-token
+SOAP_DOMAIN=yourdomain.com
+REST_DOMAIN=yourdomain.com
+SOAP_DOMAIN_CONTACTS=yourdomain-with-contacts.com
+REST_DOMAIN_CONTACTS=yourdomain-with-contacts.com
+```
+
+2. Run all tests:
+
+```bash
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox
+```
+
+3. Run specific test suites:
+
+```bash
+# SOAP read operations only
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox --filter SoapRead
+
+# REST write operations only
+env $(cat .env.test | xargs) vendor/bin/phpunit --testdox --filter RestWrite
+```
+
+#### Test Structure
+
+| Test File | Description |
+|-----------|-------------|
+| `tests/SoapReadTest.php` | SOAP API read operations (GetDetails, GetList, CheckAvailability, etc.) |
+| `tests/SoapWriteTest.php` | SOAP API write operations (ModifyNameServer, Lock, ChildNS, etc.) |
+| `tests/RestReadTest.php` | REST API read operations |
+| `tests/RestWriteTest.php` | REST API write operations |
 
 <hr style="border: 4px solid #000; border-style: dashed;">
 
