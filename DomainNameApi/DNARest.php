@@ -2012,6 +2012,15 @@ class DNARest
         if (is_array($phone)) { $phoneCc = $phone['Phone']['CountryCode'] ?? ''; $phone = $phone['Phone']['Number'] ?? ''; }
         if (is_array($fax)) { $faxCc = $fax['Fax']['CountryCode'] ?? ''; $fax = $fax['Fax']['Number'] ?? ''; }
 
+        // BUG-10481: billing panels hand us the number in display format —
+        // "+90 5323743388", "+90.5323743388", "(0532) 374 33 88" — with the
+        // country code baked in AND repeated in PhoneCountryCode. The REST
+        // gateway wants a bare subscriber number ("The field Phone must be a
+        // string with a maximum length of 16"), so split it here. DNASoap does
+        // the same in validateContact(); REST had no equivalent.
+        list($phone, $phoneCc) = $this->normalizePhone($phone, $phoneCc);
+        list($fax, $faxCc)     = $this->normalizePhone($fax, $faxCc);
+
         return [
             'contactType'      => $apiType,
             'firstName'        => $contact['FirstName'] ?? '',
@@ -2032,6 +2041,62 @@ class DNARest
             // ModelState validation to reject the whole registration.
             'isHidden'         => (bool)($contact['IsHidden'] ?? false),
         ];
+    }
+
+    /**
+     * Split a free-form phone/fax number into (subscriber number, country code).
+     *
+     * REST-ONLY — DNASoap keeps its own validateContact() logic untouched.
+     * The gateway caps `phone` at 16 characters and expects the country code in
+     * its own field, so anything the caller pasted in ("+90 5323743388",
+     * "0532 374 33 88") has to be reduced to digits and stripped of the dial
+     * prefix. An empty number is left alone: fabricating a country code for a
+     * blank fax field would only create a new validation error.
+     *
+     * @param string $number
+     * @param string $countryCode
+     * @return array{0:string,1:string} [number, countryCode]
+     */
+    private function normalizePhone($number, $countryCode)
+    {
+        $hasIntlPrefix = (bool) preg_match('/^\s*(\+|00)/', (string) $number);
+        $digits        = preg_replace('/\D/', '', (string) $number);
+        $cc            = preg_replace('/\D/', '', (string) $countryCode);
+
+        if ($digits === '') {
+            return ['', $cc];
+        }
+
+        if ($hasIntlPrefix) {
+            // "00" international prefix is equivalent to a leading "+".
+            if (strpos($digits, '00') === 0) {
+                $digits = substr($digits, 2);
+            }
+            if ($cc !== '' && strpos($digits, $cc) === 0 && strlen($digits) > strlen($cc)) {
+                $digits = substr($digits, strlen($cc));
+            }
+        } elseif ($cc !== '' && strpos($digits, $cc) === 0 && strlen($digits) > 10) {
+            // No "+", but the code is repeated at the front: "905323743388"/"90".
+            $digits = substr($digits, strlen($cc));
+        }
+
+        if ($cc === '') {
+            // Recover a Turkish country code the caller left out; otherwise fall
+            // back to the library default, same as DNASoap::validateContact().
+            if (strlen($digits) === 12 && strpos($digits, '90') === 0) {
+                $cc     = '90';
+                $digits = substr($digits, 2);
+            } else {
+                $cc = '90';
+            }
+        }
+
+        // National trunk prefix ("0532...") is not part of the E.164 number.
+        if (strlen($digits) > 1 && $digits[0] === '0') {
+            $digits = ltrim($digits, '0');
+        }
+
+        return [$digits, $cc];
     }
 
     /**
